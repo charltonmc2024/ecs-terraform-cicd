@@ -73,3 +73,19 @@ variable "container_port" {
   default     = 80
 }
 
+variable "health_check_path" {
+  description = "HTTP path used by the ALB to check ECS task health"
+  type        = string
+  default     = "/"
+}
+
+variable "ecs_desired_task_count" {
+  description = "Number of ECS Tasks to run"
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.ecs_desired_task_count >= 0
+    error_message = "Desired Task Count must be positive."
+  }
+}
