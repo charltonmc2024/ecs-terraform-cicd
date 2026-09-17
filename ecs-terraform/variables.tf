@@ -89,3 +89,26 @@ variable "ecs_desired_task_count" {
     error_message = "Desired Task Count must be positive."
   }
 }
+
+variable "domain_name" {
+  description = "Primary domain name for the tutoring platform (e.g. eruditionsys.com)"
+  type        = string
+  default     = "eruditionsys.com"
+}
+
+variable "container_image" {
+  description = "Container image URI for the ECS task. Defaults to the ECR repo latest tag."
+  type        = string
+  default     = ""
+}
+
+variable "dynamodb_billing_mode" {
+  description = "Billing mode for DynamoDB tables"
+  type        = string
+  default     = "PAY_PER_REQUEST"
+
+  validation {
+    condition     = contains(["PAY_PER_REQUEST", "PROVISIONED"], var.dynamodb_billing_mode)
+    error_message = "DynamoDB billing mode must be PAY_PER_REQUEST or PROVISIONED."
+  }
+}

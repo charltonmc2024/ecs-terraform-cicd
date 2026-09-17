@@ -8,6 +8,6 @@ resource "aws_vpc" "main" {
 
 
   tags = {
-    name = "$${var.app_name}-${var.environment}-vpc"
+    Name = "${var.app_name}-${var.environment}-vpc"
   }
 }

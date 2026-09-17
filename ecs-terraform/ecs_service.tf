@@ -18,7 +18,7 @@ resource "aws_ecs_service" "ecs_service" {
     container_port   = var.container_port
   }
 
-  depends_on = [aws_lb_listener.http]
+  depends_on = [aws_lb_listener.http, aws_lb_listener.https]
 
   tags = {
     Name = "${var.app_name}-${var.environment}-ecs-service"
