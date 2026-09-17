@@ -50,6 +50,7 @@ terraform.rc
 
 *.tfvars
 *.tfvars.json
+*.tfvars.example
 
 # Allow sanitized example variable files
 
