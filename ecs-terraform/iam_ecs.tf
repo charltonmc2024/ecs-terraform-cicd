@@ -14,7 +14,7 @@ resource "aws_iam_role" "ecs_task_execution_role" {
     ]
   })
   tags = {
-    Name = "${var.app_name}-${var.environment}-ecs-task-execution-role"
+    Name = "${local.name_prefix}-ecs-task-execution-role"
   }
 }
 

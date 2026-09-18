@@ -6,11 +6,11 @@
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "frontend" {
-  bucket        = "${var.app_name}-${var.environment}-frontend"
+  bucket        = "${local.name_prefix}-frontend"
   force_destroy = true
 
   tags = {
-    Name      = "${var.app_name}-${var.environment}-frontend"
+    Name      = "${local.name_prefix}-frontend"
     Component = "frontend"
   }
 }

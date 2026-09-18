@@ -1,7 +1,7 @@
 resource "aws_ecs_task_definition" "ecs_task" {
 
   skip_destroy             = false
-  family                   = "${var.app_name}-${var.environment}-ecs-task"
+  family                   = "${local.name_prefix}-ecs-task"
   cpu                      = var.ecs_task_cpu
   memory                   = var.ecs_task_memory
   network_mode             = "awsvpc"
@@ -10,7 +10,7 @@ resource "aws_ecs_task_definition" "ecs_task" {
   execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn      = aws_iam_role.ecs_task_role.arn
   container_definitions = jsonencode([{
-    name  = "${var.app_name}-${var.environment}-container"
+    name  = "${local.name_prefix}-container"
     image = "${aws_ecr_repository.ecr_repo.repository_url}:latest"
     portMappings = [{
       containerPort = var.container_port

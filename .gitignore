@@ -29,6 +29,9 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
+# Backend config (contains bucket name with account ID)
+backend.config
+
 # Terraform CLI configuration
 
 .terraformrc
@@ -50,7 +53,6 @@ terraform.rc
 
 *.tfvars
 *.tfvars.json
-*.tfvars.example
 
 # Allow sanitized example variable files
 

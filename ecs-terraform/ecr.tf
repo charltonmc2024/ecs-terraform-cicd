@@ -1,6 +1,6 @@
 resource "aws_ecr_repository" "ecr_repo" {
 
-  name                 = "${var.app_name}-${var.environment}-repo"
+  name                 = "${local.name_prefix}-repo"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 
@@ -8,7 +8,7 @@ resource "aws_ecr_repository" "ecr_repo" {
     scan_on_push = true
   }
   tags = {
-    Name = "${var.app_name}-${var.environment}-repo"
+    Name = "${local.name_prefix}-repo"
 
   }
 

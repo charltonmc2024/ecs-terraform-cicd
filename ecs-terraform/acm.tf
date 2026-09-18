@@ -39,7 +39,7 @@ resource "aws_route53_record" "cloudfront_cert_validation" {
     }
   }
 
-  zone_id = data.aws_route53_zone.main.zone_id
+  zone_id = aws_route53_zone.main.zone_id
   name    = each.value.name
   type    = each.value.type
   records = [each.value.record]
@@ -70,7 +70,7 @@ resource "aws_acm_certificate" "alb" {
   }
 
   tags = {
-    Name = "${var.app_name}-${var.environment}-alb-cert"
+    Name = "${local.name_prefix}-alb-cert"
   }
 }
 
@@ -86,7 +86,7 @@ resource "aws_route53_record" "alb_cert_validation" {
     }
   }
 
-  zone_id = data.aws_route53_zone.main.zone_id
+  zone_id = aws_route53_zone.main.zone_id
   name    = each.value.name
   type    = each.value.type
   records = [each.value.record]

@@ -8,7 +8,7 @@ resource "aws_route_table" "private_route_table" {
   }
 
   tags = {
-    Name = "${var.app_name}-${var.environment}-private-route-table"
+    Name = "${local.name_prefix}-private-route-table"
   }
 }
 

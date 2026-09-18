@@ -6,7 +6,7 @@ resource "aws_subnet" "private1" {
   availability_zone = "${var.aws_region}a"
 
   tags = {
-    Name = "${var.app_name}-${var.environment}-private-subnet-1"
+    Name = "${local.name_prefix}-private-subnet-1"
   }
 }
 
@@ -18,7 +18,7 @@ resource "aws_subnet" "private2" {
   availability_zone = "${var.aws_region}b"
 
   tags = {
-    Name = "${var.app_name}-${var.environment}-private-subnet-2"
+    Name = "${local.name_prefix}-private-subnet-2"
   }
 
 }

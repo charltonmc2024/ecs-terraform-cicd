@@ -5,7 +5,7 @@ resource "aws_nat_gateway" "natgw" {
   depends_on = [aws_internet_gateway.main]
 
   tags = {
-    Name = "${var.app_name}-${var.environment}-natgw"
+    Name = "${local.name_prefix}-natgw"
   }
 }
 

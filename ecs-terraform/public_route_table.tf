@@ -9,7 +9,7 @@ resource "aws_route_table" "public_route_table" {
   }
 
   tags = {
-    Name = "${var.app_name}-${var.environment}-public-route-table"
+    Name = "${local.name_prefix}-public-route-table"
   }
 }
 

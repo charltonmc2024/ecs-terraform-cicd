@@ -13,7 +13,7 @@
 
 # OAC — ties CloudFront to the S3 bucket without legacy OAI.
 resource "aws_cloudfront_origin_access_control" "frontend" {
-  name                              = "${var.app_name}-${var.environment}-oac"
+  name                              = "${local.name_prefix}-oac"
   description                       = "OAC for React frontend S3 bucket"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
@@ -23,7 +23,7 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   is_ipv6_enabled     = true
-  comment             = "${var.app_name}-${var.environment} distribution"
+  comment             = "${local.name_prefix}-distribution"
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
 
@@ -46,7 +46,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   # ---------------------------------------------------------------------------
   origin {
     domain_name = aws_lb.ecs_alb.dns_name
-    origin_id   = "ALB-${var.app_name}-${var.environment}"
+    origin_id   = "ALB-${local.name_prefix}"
 
     custom_origin_config {
       http_port              = 80
@@ -83,7 +83,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   # ---------------------------------------------------------------------------
   ordered_cache_behavior {
     path_pattern           = "/api/*"
-    target_origin_id       = "ALB-${var.app_name}-${var.environment}"
+    target_origin_id       = "ALB-${local.name_prefix}"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods         = ["GET", "HEAD"]
@@ -131,7 +131,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   tags = {
-    Name      = "${var.app_name}-${var.environment}-cloudfront"
+    Name      = "${local.name_prefix}-cloudfront"
     Component = "cdn"
   }
 
