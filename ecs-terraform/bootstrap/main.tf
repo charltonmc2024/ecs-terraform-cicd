@@ -78,7 +78,7 @@ locals {
 
 resource "aws_s3_bucket" "tfstate" {
   bucket        = local.state_bucket
-  force_destroy = false # Protect against accidental deletion of state
+  force_destroy = true # Protect against accidental deletion of state
 
   tags = {
     Name = local.state_bucket

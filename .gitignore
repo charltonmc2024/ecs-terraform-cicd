@@ -1,67 +1,53 @@
 # ==========================================
-
 # Terraform
-
 # ==========================================
 
 # Local Terraform working directories
-
-**/.terraform/*
+**/.terraform/
 
 # Terraform state files
-
 *.tfstate
 *.tfstate.*
 
 # Terraform plan files
-
 *.tfplan
 
 # Terraform crash logs
-
 crash.log
 crash.*.log
 
 # Terraform override files
-
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
 
-# Backend config (contains bucket name with account ID)
+# Backend config (environment/account-specific)
 backend.config
 
 # Terraform CLI configuration
-
 .terraformrc
 terraform.rc
 
 # NOTE:
-
 # .terraform.lock.hcl is intentionally NOT ignored.
-
 # It should be committed to Git.
 
+
 # ==========================================
-
 # Terraform Variables / Secrets
-
 # ==========================================
 
 # tfvars files may contain sensitive values
-
 *.tfvars
 *.tfvars.json
 
 # Allow sanitized example variable files
-
 !*.tfvars.example
 
+
 # ==========================================
-
 # Environment Variables / Secrets
-
 # ==========================================
 
 .env
@@ -73,22 +59,36 @@ terraform.rc
 *.p12
 *.pfx
 
+
 # ==========================================
-
 # AWS Credentials / Local AWS Configuration
-
 # ==========================================
 
 .aws/
 credentials
 
-# ==========================================
-
-# Python Backend
 
 # ==========================================
+# Node.js / Next.js
+# ==========================================
 
-**pycache**/
+node_modules/
+.next/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+dist/
+build/
+coverage/
+
+
+# ==========================================
+# Python
+# ==========================================
+
+__pycache__/
 *.py[cod]
 *.pyo
 *.pyd
@@ -100,44 +100,22 @@ env/
 .pytest_cache/
 .mypy_cache/
 
-# ==========================================
-
-# Node.js / React Frontend
 
 # ==========================================
-
-node_modules/
-
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-dist/
-build/
-
-coverage/
-
-# ==========================================
-
 # Kiro
-
 # ==========================================
 
 # Keep project-level Kiro steering and skills in Git:
-
 # .kiro/steering/
-
 # .kiro/skills/
 
 # Ignore local/user-specific Kiro files
-
 .kiro/settings.local.json
 .kiro/*.local
 
+
 # ==========================================
-
 # IDE / Editor
-
 # ==========================================
 
 .vscode/
@@ -147,20 +125,22 @@ coverage/
 *.swo
 *~
 
+# VS Code SQLTools/local runtime artifacts
+*.node-runtime
+
+
 # ==========================================
-
-# Operating System
-
+# Operating System / Windows Metadata
 # ==========================================
 
 .DS_Store
 Thumbs.db
 desktop.ini
+*:Zone.Identifier
+
 
 # ==========================================
-
 # Logs / Temporary Files
-
 # ==========================================
 
 *.log

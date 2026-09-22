@@ -1,0 +1,98 @@
+import { Blog } from "@/types/team";
+
+const boardAdvisorsData: Blog[] = [
+  {
+    id: 1,
+    title: "Provides Erudition Solution specialized technical insight and strategic guidance by assisting in shaping the company's long-term technology strategy. Advises the company on long-term technology strategy, identifying emerging trends, potential risks, and opportunities for innovation.",
+    image: "/images/members/steven.jpg",
+    author: {
+      name: "Steven Wilson",
+      image: "/images/members/steven.jpg",
+      designation: "Information Technology Specialist / Senior Software Developer",
+      company: "Microsoft",
+      companyLogo: "/logos/microsoft.svg",
+    },
+    testimonial: "Steven's strategic guidance has been invaluable to our growth.",
+    rating: 5,
+    tags: ["Strategy", "Leadership", "Technology"],
+    publishDate: "2025",
+  },
+  {
+    id: 2,
+    title: "Advises on how Erudition Solutions can best position its products and brand within the competitive digital landscape to resonate with its target audience.",
+    image: "/images/members/francis.png",
+    author: {
+      name: "Francis Ibikunle",
+      image: "/images/members/francis.png",
+      designation: "Chief Executive Officer / Owner of Brownstone Enterprise Solutions, LLC / Digital Marketing Professional",
+      company: "Brownstone Enterprise Solutions",
+      companyLogo: "/logos/brownstone.svg",
+    },
+    testimonial: "Francis helped us position our brand for maximum impact.",
+    rating: 4.5,
+    tags: ["Marketing", "Strategy", "Digital"],
+    publishDate: "2025",
+  },
+  {
+    id: 3,
+    title: "Provides Erudition Solutions advise on proactively manage its security posture, mitigate risks, comply with regulations, and build trust with its customers by ensuring our products and operations are secure from end to end.",
+    image: "/images/members/william.jpg",
+    author: {
+      name: "William Thornton",
+      image: "/images/members/william.jpg",
+      designation: "Security Specialist / Cert. Information System Security Professional",
+      company: "CyberSafe",
+      companyLogo: "/logos/cybersafe.svg",
+    },
+    testimonial: "William's security expertise gave us peace of mind.",
+    rating: 5,
+    tags: ["Security", "Compliance", "Risk Management"],
+    publishDate: "2025",
+  },
+  {
+    id: 4,
+    title: "Provides insights into long-term trends in education, including shifts in teaching methodologies, assessment paradigms, and the evolving needs of high school students and educators.",
+    image: "/images/members/austin.jpg",
+    author: {
+      name: "Dr. Austin Umezurike, Ph. D",
+      image: "/images/members/austin.jpg",
+      designation: "Professor - Information Technology / IT Project Consultant / IT Professor",
+      company: "Harvard University",
+      companyLogo: "/logos/harvard.svg",
+    },
+    testimonial: "Austin's insights into education trends are unmatched.",
+    rating: 5,
+    tags: ["Education", "Research", "Teaching"],
+    publishDate: "2025",
+  },
+  // {
+  //   id: 5,
+  //   title: "Provides expert advise and guidance on where and how AI can be strategically integrated into the Erudition Solutions products, services, and internal operations.",
+  //   image: "/images/members/carl.jpg",
+  //   author: {
+  //     name: "Carl Brown",
+  //     image: "/images/members/carl.jpg",
+  //     designation: "Chief Executive Officer / Owner of Brownstone Enterprise Solutions, LLC / Artificial Intelligence Software Engineer",
+  //     company: "Brownstone AI",
+  //     companyLogo: "/logos/brownstoneai.svg",
+  //   },
+  //   testimonial: "Carl's AI guidance has been transformative for our products.",
+  //   rating: 4.5,
+  //   tags: ["AI", "Technology", "Innovation"],
+  //   publishDate: "2025",
+  // },
+//   {
+//     id: 6,
+//     title: "Board Advisor",
+//     image: "/images/members/steven.png",
+//     author: {
+//       name: "Steven",
+//       image: "/images/members/steven.png",
+//       designation: "Board Advisor",
+//     },
+//     tags: ["Advisor", "Board"],
+//     publishDate: "2025",
+//   },
+];
+
+export default boardAdvisorsData; 

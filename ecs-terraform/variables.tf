@@ -70,7 +70,7 @@ variable "ecs_task_memory" {
 variable "container_port" {
   description = "Container Port"
   type        = number
-  default     = 80
+  default     = 8000
 }
 
 variable "health_check_path" {
