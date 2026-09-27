@@ -1,63 +1,115 @@
-# Product
+# Erudition Solution — Product Context
 
-## Product Overview
+## Purpose
 
-Erudition Solution is a cloud-native SaaS platform for school districts
-that provides adaptive test preparation for state standardized
-assessments.
+Erudition Solution is an adaptive educational assessment platform for school districts.
 
-The platform is intended to provide personalized practice to students
-and progress visibility to teachers.
+Students take practice assessments aligned with state standardized testing.
+Questions adapt to student performance, while teachers can review student
+progress and assessment results.
 
 ## Primary Users
 
--   Students
--   Teachers
--   District and administrative staff
+### Students
+- Sign in securely.
+- Take adaptive practice assessments.
+- Submit answers.
+- View appropriate results and progress.
 
-## Core Product Capabilities
+### Teachers
+- Sign in securely.
+- View student progress.
+- Review assessment performance.
+- Monitor class-level results.
 
-The backend supports:
+## Engineering Goals
 
--   Student operations
--   Testing operations
--   Test management
--   Class management
--   Test availability
--   Role management
--   Question management
--   Reading and writing application data
--   Business logic
--   API validation
--   Authentication and authorization checks
+The platform should be:
 
-## Core Testing Workflow
+- Secure
+- Scalable
+- Highly available where appropriate
+- Cost-conscious
+- Observable
+- Automated
+- Maintainable
+- Infrastructure-as-Code driven
 
-The initial product should focus on the core testing workflow and
-interactions between teachers and students.
+## Current Environment Scope
 
-Student-facing capabilities include:
+The current implementation target is the development environment only.
 
--   Register and log in
--   View tests
--   Search tests by subject
--   View test availability
--   Book test sessions
--   View upcoming sessions
+Terraform deployment root:
 
-## Product Principles
+`ecs-terraform/envs/dev/`
 
--   Keep the initial implementation focused on the MVP.
--   Add services and features when they solve an actual application
-    requirement.
--   Prefer a scalable, secure, and cost-conscious production
-    architecture.
--   Keep the browser separated from the database; application data
-    access must go through the backend API.
+Do not create:
 
-## Detailed Product and Architecture Reference
+- `envs/staging/`
+- `envs/prod/`
 
-See `docs/AWS-Production-Deployment.md`.
+unless explicitly requested.
 
-Legacy/current QA environment details belong in
-`docs/QA-Environment-Specifications.md`, not in this steering file.
+Reusable modules must remain environment-independent so additional
+environments can be added later without redesigning the modules.
+
+## Current Goal
+
+Complete a working end-to-end development environment containing:
+
+- VPC
+- Public and private subnets
+- Internet Gateway
+- Optional NAT Gateway
+- VPC endpoints
+- Security groups
+- S3 frontend
+- CloudFront
+- ACM
+- Route 53
+- AWS Shield Standard protection
+- ECR
+- Internal Application Load Balancer
+- CloudFront VPC Origin
+- ECS Fargate
+- DynamoDB
+- KMS where appropriate
+- Secrets management
+- Jenkins CI/CD
+- CloudWatch
+- SNS
+- WAF
+- CloudTrail
+- GuardDuty
+- AWS Config
+
+## Technology
+
+Application:
+- Next.js
+- Node.js
+- TypeScript
+- Docker
+
+Infrastructure:
+- AWS
+- Terraform
+
+Compute:
+- ECS Fargate
+
+Data:
+- DynamoDB
+
+CI/CD:
+- Jenkins
+
+## Cost Principle
+
+Prefer the lowest-cost architecture that satisfies development,
+security, reliability, and learning requirements.
+
+Optional resources with meaningful recurring cost should be configurable
+where practical.
+
+Do not add AWS services simply to make the architecture more complex.

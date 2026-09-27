@@ -1,167 +1,188 @@
-# Terraform Conventions
+# Terraform Standards
 
-## General Principles
+## Current Scope
 
--   Manage AWS infrastructure with Terraform.
--   Prefer reusable and maintainable Terraform over duplicated
-    configuration.
--   Avoid hardcoding values that should be variables, locals, resource
-    references, or data-source values.
--   Prefer least-privilege IAM.
--   Keep the infrastructure cost-conscious while meeting application
-    requirements.
--   Do not create a one-to-one AWS server replacement merely because a
-    server exists in the legacy QA environment.
+The only deployment root currently being implemented is:
 
-## Naming
+`ecs-terraform/envs/dev/`
 
-Use the shared application/environment prefix for resources when
-appropriate.
+Do not create:
 
-``` hcl
-locals {
-  name_prefix = "${var.app_name}-${var.environment}"
-}
-```
+- `envs/staging/`
+- `envs/prod/`
 
-Prefer:
+unless explicitly requested.
 
-``` hcl
-name = "${local.name_prefix}-resource"
-```
+## Directory Structure
 
-instead of repeatedly constructing:
+Reusable infrastructure:
 
-``` hcl
-name = "${var.app_name}-${var.environment}-resource"
-```
+`ecs-terraform/modules/`
 
-Use Terraform references instead of manually copying AWS ARNs or
-generated identifiers.
+Current root module:
 
-## Shared Tags
+`ecs-terraform/envs/dev/`
 
-Use consistent tags for AWS resources where supported.
+Remote-state bootstrap:
 
-Typical tags include:
+`ecs-terraform/bootstrap/`
 
--   Project
--   Environment
--   ManagedBy
--   Owner
+## Modules
 
-Prefer shared tags through provider `default_tags` and/or
-`local.common_tags` rather than repeating tag maps unnecessarily.
+Current modules:
+
+- network
+- edge
+- backend
+- data
+- cicd
+- observability
+
+Modules must remain reusable and must not contain unnecessary
+development-specific configuration.
+
+## No Hardcoding
+
+Do not hardcode:
+
+- AWS account IDs
+- ARNs
+- VPC IDs
+- subnet IDs
+- security group IDs
+- ECR URLs
+- generated resource identifiers
+
+Use:
+
+- Terraform variables
+- locals
+- resource references
+- data sources
+- module outputs
 
 ## Variables
 
-Use variables for environment-specific or configurable values such as:
+Variables should:
 
--   AWS region
--   Application name
--   Environment
--   VPC CIDR
--   Public/private subnet CIDRs
--   ECS task CPU
--   ECS task memory
--   ECS desired task count
--   Container port
--   Health-check path
+- Have meaningful names
+- Declare explicit types
+- Include useful descriptions
+- Include validation where appropriate
 
-Do not hardcode these values throughout resource definitions.
+Development-specific values belong primarily in:
+
+`envs/dev/terraform.tfvars`
+
+## Outputs
+
+Modules should expose only values required by another module,
+the root module, CI/CD, or operators.
+
+Examples:
+
+- vpc_id
+- public_subnet_ids
+- private_subnet_ids
+- alb_security_group_id
+- ecs_security_group_id
+- ecr_repository_url
+- ecs_cluster_name
+- ecs_service_name
+- table_name
+- cloudfront_distribution_id
+
+## Naming
+
+Use locals for derived names.
+
+Preferred pattern:
+
+`${var.app_name}-${var.environment}`
+
+Avoid repeating naming logic across resources.
+
+## Tags
+
+Use common tags where AWS resources support them.
+
+Recommended:
+
+- Project
+- Environment
+- ManagedBy
+- Owner
+
+## State
+
+The bootstrap configuration creates the remote-state infrastructure.
+
+Bootstrap uses separate state from the main development environment.
+
+Development state key:
+
+`dev/terraform.tfstate`
+
+Never commit:
+
+- `*.tfstate`
+- `*.tfstate.*`
+- `.terraform/`
+
+## Backend
+
+The environment backend configuration belongs under:
+
+`envs/dev/`
+
+Do not attempt to create the backend S3 bucket from the same Terraform
+state that depends on that backend.
 
 ## Providers
 
-Use the normal AWS provider for resources in the deployment region.
+Configure AWS providers in the root environment:
 
-When CloudFront-related ACM resources require `us-east-1`, use an
-aliased AWS provider for that region.
+`envs/dev/providers.tf`
 
-## Networking
+Provider aliases should also be defined there.
 
--   ALB belongs in public subnets.
--   ECS Fargate tasks belong in private subnets.
--   ECS services should not receive public IP addresses.
--   ECS security groups should accept application traffic from the ALB
-    security group rather than from `0.0.0.0/0`.
--   Use NAT Gateway egress when private workloads require outbound
-    internet access.
+Example:
 
-## ECS
+- default AWS region
+- `aws.us_east_1`
 
--   Use Fargate for the target backend architecture.
--   Use `awsvpc` networking.
--   Keep ECS container names consistent between task definitions and ECS
-    service load-balancer configuration.
--   Store images in ECR.
--   Send container logs to CloudWatch.
--   Use the ECS task execution role for ECS/Fargate execution
-    requirements.
--   Use a separate task/application IAM role when the application needs
-    AWS API permissions.
+Child modules should receive provider configurations when required.
 
-## ALB
+Do not place AWS credentials inside provider configuration.
 
--   Use an Application Load Balancer for backend API traffic.
--   Use target groups with `target_type = "ip"` for Fargate tasks.
--   Configure health checks using the application's health-check path.
--   Use HTTPS for production public traffic.
--   Redirect HTTP to HTTPS where appropriate.
+## Terraform Workflow
 
-## DynamoDB
+Before committing:
 
--   DynamoDB is the target application database.
--   Base table and index design on application access patterns.
--   Enable encryption.
--   Enable point-in-time recovery where required by the project design.
--   Grant DynamoDB access through the ECS task IAM role.
--   Never expose database access directly to the frontend.
+`terraform fmt -recursive`
 
-## S3 and CloudFront
+Before applying:
 
--   Keep frontend S3 buckets private.
--   Use CloudFront as the public delivery layer.
--   Use an appropriate CloudFront origin-access mechanism.
--   Use ACM certificates for HTTPS.
--   CloudFront ACM certificates must be in `us-east-1`.
+`terraform init`
+`terraform validate`
+`terraform plan`
 
-## IAM
+Review the plan before:
 
--   Follow least privilege.
--   Separate execution permissions from application permissions.
--   Do not embed credentials in Terraform code, application source, or
-    container images.
--   Reference IAM roles and policies through Terraform resources
-    whenever possible.
+`terraform apply`
 
-## Terraform State
+## Resource Movement
 
-Keep bootstrap/state infrastructure separate from the main application
-infrastructure.
+When refactoring existing resources into modules, do not blindly
+delete and recreate resources.
 
-The main Terraform configuration should use remote state rather than
-relying on local state for shared/deployed environments.
+Review Terraform state and resource addresses.
 
-Do not commit sensitive state files or credentials to source control.
+Use Terraform state-aware refactoring such as `moved` blocks when
+appropriate to prevent unnecessary destruction and recreation.
 
-## Validation
+## Versions
 
-Before applying changes, use the normal Terraform workflow:
+Use compatible pinned Terraform and AWS provider versions.
 
-``` bash
-terraform fmt
-terraform validate
-terraform plan
-```
-
-Review the plan before applying infrastructure changes.
-
-## Architecture References
-
-For detailed target architecture, see:
-
-`docs/AWS-Production-Deployment.md`
-
-For the existing/legacy QA environment, see:
-
-`docs/QA-Environment-Specifications.md`
+Do not perform major version upgrades without reviewing compatibility.
