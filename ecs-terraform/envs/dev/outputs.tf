@@ -39,3 +39,32 @@ output "dynamodb_table_id" {
   description = "ID of the DynamoDB App_Table created by the data module."
   value       = module.data.dynamodb_table_id
 }
+
+# Re-export the backend module's minimized output surface. These identifiers are
+# consumed by CI/CD (image push and ECS deployment) and by 04-edge, which builds
+# the CloudFront distribution over the internal ALB via the VPC Origin.
+
+output "ecr_repository_url" {
+  description = "URL of the ECR repository that CI/CD pushes the application image to."
+  value       = module.backend.ecr_repository_url
+}
+
+output "alb_dns_name" {
+  description = "DNS name of the internal ALB, consumed by 04-edge as the CloudFront origin."
+  value       = module.backend.alb_dns_name
+}
+
+output "vpc_origin_id" {
+  description = "ID of the CloudFront VPC Origin over the internal ALB, consumed by 04-edge."
+  value       = module.backend.vpc_origin_id
+}
+
+output "ecs_cluster_name" {
+  description = "Name of the ECS cluster, used by CI/CD to target ECS deployments."
+  value       = module.backend.ecs_cluster_name
+}
+
+output "ecs_service_name" {
+  description = "Name of the ECS service, used by CI/CD to trigger and verify deployments."
+  value       = module.backend.ecs_service_name
+}

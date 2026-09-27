@@ -74,3 +74,23 @@ variable "deletion_protection_enabled" {
   type        = bool
   default     = false
 }
+
+# Backend / application-layer inputs consumed by module "backend" (ECS Fargate app).
+
+variable "container_port" {
+  description = "TCP port the application container listens on; used by the task definition port mapping, target group, and ECS security group ingress."
+  type        = number
+  default     = 3000
+}
+
+variable "health_check_path" {
+  description = "HTTP path the ALB target group health check requests so the ALB only routes to healthy tasks."
+  type        = string
+  default     = "/"
+}
+
+variable "image_tag" {
+  description = "Application image tag the ECS task definition references. A real deploy overrides this with an immutable tag (e.g. a Git SHA); the default keeps validate/plan working."
+  type        = string
+  default     = "latest"
+}

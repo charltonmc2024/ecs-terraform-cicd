@@ -46,3 +46,30 @@ module "data" {
     Owner       = var.owner
   }
 }
+# The backend module owns the application runtime (ECS Fargate, internal ALB, ECR)
+# and the CloudFront VPC Origin edge entry point. It consumes network outputs
+# (vpc_id, private_subnet_ids) and data outputs (dynamodb_table_name/arn) — never
+# literals (R14.5) — and inherits the AWS provider (region + default_tags) from the
+# dev root; no aws_region is passed in. Sizing, autoscaling, and log retention use
+# module defaults for cost-conscious development.
+module "backend" {
+  source = "../../modules/backend"
+
+  app_name    = var.app_name
+  environment = var.environment
+  tags = {
+    Project     = var.app_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+    Owner       = var.owner
+  }
+
+  vpc_id              = module.network.vpc_id
+  private_subnet_ids  = module.network.private_subnet_ids
+  dynamodb_table_name = module.data.dynamodb_table_name
+  dynamodb_table_arn  = module.data.dynamodb_table_arn
+
+  container_port    = var.container_port
+  health_check_path = var.health_check_path
+  image_tag         = var.image_tag
+}
