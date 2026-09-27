@@ -79,13 +79,13 @@ Development-specific values belong primarily in:
 Modules should expose only values required by another module,
 the root module, CI/CD, or operators.
 
-Examples:
+Do not create outputs merely because a resource has an ID or ARN.
+
+Examples, when required by downstream consumers:
 
 - vpc_id
 - public_subnet_ids
 - private_subnet_ids
-- alb_security_group_id
-- ecs_security_group_id
 - ecr_repository_url
 - ecs_cluster_name
 - ecs_service_name
@@ -171,18 +171,26 @@ Review the plan before:
 
 `terraform apply`
 
-## Resource Movement
+### Clean-Slate Refactoring
 
-When refactoring existing resources into modules, do not blindly
-delete and recreate resources.
+The current modular architecture is a clean-slate implementation.
 
-Review Terraform state and resource addresses.
+Previous application infrastructure was intentionally removed and
+legacy Terraform files may remain in the repository temporarily for
+reference.
 
-Use Terraform state-aware refactoring such as `moved` blocks when
-appropriate to prevent unnecessary destruction and recreation.
+Do not create `moved` blocks or perform Terraform state migration for
+legacy application resources unless explicitly requested.
 
-## Versions
+The current Terraform source of truth is:
 
-Use compatible pinned Terraform and AWS provider versions.
+- `ecs-terraform/modules/`
+- `ecs-terraform/envs/dev/`
 
-Do not perform major version upgrades without reviewing compatibility.
+Legacy Terraform files outside these locations are reference-only.
+
+Do not modify, import, migrate, or use legacy Terraform resources as
+the implementation source unless explicitly requested.
+
+Before deployment, verify that the active remote state does not contain
+stale records for previously deleted application resources.
