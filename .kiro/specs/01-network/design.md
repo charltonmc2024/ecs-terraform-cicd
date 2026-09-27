@@ -21,11 +21,28 @@ of this module — they are owned by the future `03-backend` module, which attac
 groups to this VPC. Because the S3 and DynamoDB endpoints created here are Gateway endpoints (which
 do not use security groups), the network module creates **no security groups at all**.
 
-One dev-environment design choice is called out explicitly:
+The dev-environment egress model is called out explicitly (module defaults vs DEV configuration are
+distinct — see below):
 
-1. **NAT Gateway is optional and off by default** (`enable_nat_gateway = false`) to minimize
-   development costs. Because NAT is off in dev, the private route table has no `0.0.0.0/0` route
-   (see [Requirement 6](#requirement-references), [Requirement 7](#requirement-references)).
+1. **NAT Gateway and gateway endpoints are ENABLED for DEV.** The module keeps both toggles optional
+   with `default = false` so it stays reusable across environments, but the DEV configuration sets
+   `enable_nat_gateway = true` and `enable_vpc_endpoints = true`. Private ECS Fargate tasks run with
+   `assign_public_ip = false` and reach S3 and DynamoDB through the Gateway endpoints, while all other
+   required IPv4 outbound traffic egresses through a single public NAT Gateway to the Internet Gateway.
+   The private route table therefore carries a `0.0.0.0/0 -> NAT` route in DEV
+   (see [Requirement 6](#requirement-references), [Requirement 7](#requirement-references),
+   [Requirement 8](#requirement-references)).
+2. **One NAT Gateway is a deliberate DEV cost/availability tradeoff.** DEV uses exactly one zonal NAT
+   Gateway rather than one per Availability Zone — lower cost and simpler, at the price of NAT egress
+   that is not AZ-redundant. A production high-availability topology would use one NAT Gateway per AZ,
+   with each private subnet routing `0.0.0.0/0` to the NAT Gateway in its own AZ; that is context only
+   and remains out of the current DEV scope.
+3. **This DEV egress capability satisfies the 03-backend private-egress dependency** (currently
+   documented as OPEN/BLOCKING by 03-backend) and must be in place before ECS tasks are deployed:
+   ECR/API and general AWS/public outbound traffic and CloudWatch Logs use NAT; ECR image-layer S3
+   traffic uses the S3 Gateway endpoint; application DynamoDB traffic uses the DynamoDB Gateway
+   endpoint. No interface (PrivateLink) endpoints and no endpoint security group are introduced, so the
+   network module still requires no `03-backend` output and no circular dependency arises.
 
 The module is written to be environment-independent: it declares typed, validated inputs and
 exposes only the outputs downstream modules need. No dev-specific values, account IDs, ARNs, or
@@ -62,11 +79,11 @@ flowchart TB
         end
 
         PubRT[Public Route Table<br/>0.0.0.0/0 -> IGW]
-        PrivRT[Private Route Table<br/>0.0.0.0/0 -> NAT<br/>only when enable_nat_gateway]
+        PrivRT[Private Route Table<br/>0.0.0.0/0 -> NAT<br/>+ S3/DynamoDB prefix-list routes]
 
-        NAT[NAT Gateway + EIP<br/>optional, off by default]
-        S3EP[S3 Gateway Endpoint<br/>optional]
-        DDBEP[DynamoDB Gateway Endpoint<br/>optional]
+        NAT[NAT Gateway + EIP<br/>DEV: one zonal NAT enabled]
+        S3EP[S3 Gateway Endpoint<br/>DEV: enabled]
+        DDBEP[DynamoDB Gateway Endpoint<br/>DEV: enabled]
     end
 
     Internet --> IGW --> PubRT
@@ -75,15 +92,18 @@ flowchart TB
     PrivRT --- PrivA
     PrivRT --- PrivB
     NAT -. placed in .-> PubA
-    PrivRT -. when NAT on .-> NAT
+    PrivRT -->|0.0.0.0/0| NAT
     PubRT -. route assoc .-> S3EP
-    PrivRT -. route assoc .-> S3EP
+    PrivRT -->|S3 prefix list| S3EP
     PubRT -. route assoc .-> DDBEP
-    PrivRT -. route assoc .-> DDBEP
+    PrivRT -->|DynamoDB prefix list| DDBEP
 ```
 
-The network module's job is to provide the VPC, subnets, routing, optional egress (NAT), and
-optional private service access (gateway endpoints). It does not create security groups: downstream
+The network module's job is to provide the VPC, subnets, routing, egress (NAT — enabled in DEV), and
+private service access (S3/DynamoDB gateway endpoints — enabled in DEV). The intended DEV routing is:
+the private route table sends `0.0.0.0/0` to the NAT Gateway, while the more-specific S3 and DynamoDB
+prefix-list routes installed by the gateway endpoints take precedence, so that same-Region S3 and
+DynamoDB traffic uses the endpoints instead of NAT. It does not create security groups: downstream
 modules (notably `03-backend`) attach their own security groups to this VPC and own the
 CloudFront → ALB → ECS traffic relationship.
 
@@ -169,7 +189,8 @@ resource "aws_nat_gateway" "natgw" {
   tags          = merge(var.tags, { Name = "${local.name_prefix}-natgw" })
 }
 
-# The private default route only exists when NAT is on (R6.2, R6.3, R7.4, R7.5). NAT off by default.
+# The private default route only exists when NAT is on (R6.2, R6.3, R7.4, R7.5). Module default is off
+# for reusability; the DEV configuration sets enable_nat_gateway = true, so this route is present in DEV.
 resource "aws_route" "private_nat" {
   count                  = var.enable_nat_gateway ? 1 : 0
   route_table_id         = aws_route_table.private_route_table.id
@@ -337,7 +358,7 @@ locked AWS provider version.
 | `backend.tf` | S3 backend block (`backend "s3" {}`), configured at init via `-backend-config`. |
 | `versions.tf` | Terraform + AWS provider pins (as above). |
 | `variables.tf` | Mirror of module inputs with explicit types, descriptions, and correctly-typed defaults (R11.4). |
-| `terraform.tfvars` | Dev values incl. `enable_nat_gateway = false`, `enable_vpc_endpoints = false` (R11.5). |
+| `terraform.tfvars` | Dev values incl. `enable_nat_gateway = true`, `enable_vpc_endpoints = true` (R11.5). |
 | `main.tf` | `module "network"` call, `source = "../../modules/network"`, passing every input + `tags` map (R11.1, R11.2, R11.3). |
 | `outputs.tf` | Re-export module outputs (e.g. `module.network.vpc_id`) (R11.6). |
 
@@ -430,8 +451,9 @@ This is a clean-slate deployment against a fresh state:
 This feature is **Infrastructure as Code** (Terraform HCL). Terraform configuration is declarative
 and has no pure input/output function to quantify a "for all inputs" property over. Per the
 project's testing guidance, PBT is explicitly not appropriate for IaC — snapshot/plan analysis and
-policy checks are the right tools. Accordingly, this design has **no Correctness Properties section**
-and specifies plan-based verification and static checks instead.
+policy checks are the right tools. Accordingly, the Correctness Properties for this design are
+expressed as testable infrastructure invariants (see the Correctness Properties section below),
+verified through plan-based analysis and static checks rather than property-based tests.
 
 ### Verification workflow
 
@@ -444,24 +466,69 @@ Run against `ecs-terraform/envs/dev/` (and `ecs-terraform/modules/network/` for 
 4. **Plan** — `terraform plan -out=tfplan`; review, then
    `terraform show -json tfplan > plan.json` for automated assertions.
 
-### Testable invariants (checked against `terraform plan -json` output)
+## Correctness Properties
 
-These replace correctness properties. Each is an assertion over the plan JSON (parsed manually, or
-with a policy tool such as `conftest`/OPA or `terraform-compliance` if the project adopts one — not
-required by this spec):
+The following testable invariants define the correctness properties of the 01-network design. Each is
+an assertion over the `terraform plan -json` output (parsed manually, or with a policy tool such as
+`conftest`/OPA or `terraform-compliance` if the project adopts one — not required by this spec):
 
-| Invariant | Assertion | Requirement |
-| --- | --- | --- |
-| A. Fresh plan is all-create | Against a clean state, every resource in `resource_changes[].change.actions` is `["create"]` only — 0 destroy, 0 update, 0 replace | R11.7 |
-| B. NAT resources absent when disabled | With `enable_nat_gateway = false`, planned state contains no `aws_nat_gateway`/`aws_eip` in `module.network` | R7.5 |
-| C. VPC endpoints absent when disabled | With `enable_vpc_endpoints = false`, planned state contains zero `aws_vpc_endpoint` resources | R8.4 |
-| D. Private RT has no default route when NAT off | No `aws_route.private_nat` in planned state; private route table has no `0.0.0.0/0` route | R6.3, R7.5 |
-| E. Outputs resolve | `vpc_id`, `public_subnet_ids`, and `private_subnet_ids` are non-null; `nat_gateway_id` is `null` when NAT disabled | R10 |
-| F. Enabled-path sanity | With `enable_nat_gateway = true` and `enable_vpc_endpoints = true` in a scratch plan, NAT/EIP/private route and both gateway endpoints appear as planned additions | R6.2, R7.2–R7.4, R8.2, R8.3 |
+### Property 1: Fresh-plan all-create invariant
 
-Invariants A–E are checked in the dev configuration as-is. Invariant F is a one-off validation plan
-run with the toggles flipped (not applied), to confirm the conditional resources materialize
-correctly.
+Against a clean state, every resource in `resource_changes[].change.actions` is `["create"]` only — 0 destroy, 0 update, 0 replace.
+
+**Validates: Requirements 11.7**
+
+### Property 2: DEV NAT enabled, exactly one
+
+With the DEV configuration (`enable_nat_gateway = true`), the plan contains exactly one `aws_nat_gateway` and one `aws_eip` in `module.network` (one zonal NAT, not per-AZ).
+
+**Validates: Requirements 7.8**
+
+### Property 3: DEV gateway endpoints enabled
+
+With `enable_vpc_endpoints = true`, the plan contains exactly two `aws_vpc_endpoint` resources — S3 and DynamoDB, both `vpc_endpoint_type = "Gateway"` — associated with the private route table.
+
+**Validates: Requirements 8.6**
+
+### Property 4: Private default route targets NAT; public targets IGW
+
+The private route table has a `0.0.0.0/0` route to the NAT Gateway (`aws_route.private_nat` present) and the public route table has `0.0.0.0/0` to the IGW; the S3/DynamoDB gateway-endpoint prefix routes are more specific and take precedence for those services.
+
+**Validates: Requirements 7.8, 8.7**
+
+### Property 5: Outputs resolve
+
+`vpc_id`, `public_subnet_ids`, and `private_subnet_ids` are non-null; `nat_gateway_id` is a non-null NAT id in DEV (NAT enabled).
+
+**Validates: Requirements 10.1, 10.2, 10.3, 10.4**
+
+### Property 6: No interface endpoints, no endpoint SG
+
+The plan contains zero interface `aws_vpc_endpoint` resources (no `ecr.api`/`ecr.dkr`/`logs`/`ecs`/`sts`/`secretsmanager`/`ssm`) and zero `aws_security_group` resources in `module.network`.
+
+**Validates: Requirements 8.6, 7.9**
+
+### Property 7: No network to backend dependency
+
+The network module and its variables reference no `03-backend` output (no ECS/ALB security-group id, cluster id, or service id); dependency direction stays network to backend.
+
+**Validates: Requirements 11.1**
+
+### Property 8: Private workloads stay private
+
+The design keeps `assign_public_ip = false` on ECS tasks (owned by 03-backend) and the private subnets have no direct IGW route; NAT is outbound-only.
+
+**Validates: Requirements 7.9**
+
+### Property 9: Module defaults vs DEV config
+
+The module retains `default = false` for `enable_nat_gateway` and `enable_vpc_endpoints` (reusable/disableable elsewhere) while the DEV configuration sets both to `true`.
+
+**Validates: Requirements 7.1, 8.1, 7.8, 8.6**
+
+These properties are checked against the DEV configuration (both toggles `true`). Because DEV enables
+NAT and the gateway endpoints, the enabled-path resources are part of the normal DEV plan rather than a
+scratch run.
 
 ### CI integration
 

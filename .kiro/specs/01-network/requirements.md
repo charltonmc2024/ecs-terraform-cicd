@@ -18,8 +18,22 @@ deleted, so there is no existing state to preserve. The `envs/dev` root module i
 and the source of truth for the development environment. Running `terraform plan` against a clean state
 represents the CREATION of new development infrastructure, not a migration of existing resources.
 
-The NAT Gateway is off by default to minimize development costs. The VPC endpoint configuration is also
-optional and cost-conscious.
+The NAT Gateway and the S3/DynamoDB Gateway endpoints are module-level capabilities that default to off so
+the module stays reusable across environments. For the DEV environment they are ENABLED
+(`enable_nat_gateway = true`, `enable_vpc_endpoints = true`): private ECS Fargate tasks run with
+`assign_public_ip = false` and reach S3 and DynamoDB through the Gateway endpoints, while all other required
+outbound traffic egresses via a single public NAT Gateway. This DEV networking capability — one NAT Gateway
+plus the S3 and DynamoDB Gateway endpoints — is what satisfies the private-egress dependency currently
+documented as OPEN/BLOCKING by the 03-backend spec; it must be in place before ECS tasks are deployed.
+
+DEV intentionally uses ONE NAT Gateway (not one per Availability Zone) as a deliberate cost/availability
+tradeoff: lower development cost and a simpler implementation, at the price of NAT outbound connectivity
+that is not AZ-redundant. A production high-availability topology may use one NAT Gateway per AZ with each
+private subnet routing `0.0.0.0/0` to the NAT Gateway in its own AZ, but that is outside the current
+DEV-only scope. No interface (PrivateLink) VPC endpoints — for `ecr.api`, `ecr.dkr`, `logs`, `ecs`,
+`ecs-agent`, `ecs-telemetry`, `sts`, `secretsmanager`, or `ssm` — are introduced for DEV; the NAT Gateway
+provides the general outbound path, and no endpoint security group is created (so the network module still
+requires no `03-backend` security-group input and no circular dependency is introduced).
 
 The bootstrap configuration remains separate and is responsible for creating the Terraform remote-state
 infrastructure used by the development environment.
@@ -161,8 +175,9 @@ the NAT Gateway is active.
 
 ### Requirement 7: NAT Gateway
 
-**User Story:** As a platform engineer, I want an optional NAT Gateway that is disabled by default, so that
-private subnets can reach the internet when needed without incurring NAT costs during normal development.
+**User Story:** As a platform engineer, I want an optional NAT Gateway (module default off for reusability)
+that is ENABLED for the DEV environment, so that private ECS Fargate tasks have an outbound path for
+required services and general egress while remaining private with `assign_public_ip = false`.
 
 #### Acceptance Criteria
 
@@ -180,14 +195,24 @@ private subnets can reach the internet when needed without incurring NAT costs d
    set when it is created.
 7. THE Network_Module SHALL tag the NAT Gateway with `Name = "${local.name_prefix}-natgw"` and the common
    tag set when it is created.
+8. FOR the DEV environment THE Dev_Root SHALL set `enable_nat_gateway = true`, provisioning exactly ONE
+   public NAT Gateway (with its EIP) whose purpose is outbound connectivity from private workloads such as
+   ECS Fargate. This single NAT Gateway is a deliberate DEV cost/availability tradeoff and SHALL NOT be
+   AZ-redundant; the Network_Module SHALL NOT require one NAT Gateway per Availability Zone for DEV. A
+   production HA topology may use one NAT Gateway per AZ, but that is outside the current DEV scope.
+9. THE DEV NAT Gateway SHALL provide outbound-only egress: it SHALL NOT make the private subnets publicly
+   reachable, private ECS tasks SHALL continue to use `assign_public_ip = false`, and no unsolicited inbound
+   internet connection SHALL be able to initiate through the NAT Gateway. Public subnets continue to route
+   `0.0.0.0/0` to the Internet Gateway; the private route table routes `0.0.0.0/0` to the NAT Gateway.
 
 ---
 
 ### Requirement 8: VPC Gateway Endpoints
 
-**User Story:** As a platform engineer, I want optional VPC Gateway endpoints for S3 and DynamoDB, so that
-ECS tasks can reach those services without routing traffic through the NAT Gateway, reducing data transfer
-costs.
+**User Story:** As a platform engineer, I want VPC Gateway endpoints for S3 and DynamoDB (module default
+off for reusability) ENABLED for the DEV environment, so that S3 and DynamoDB traffic from private workloads
+uses the Gateway endpoints directly instead of the NAT Gateway, reducing data-transfer cost and keeping that
+same-Region traffic off the NAT path.
 
 #### Acceptance Criteria
 
@@ -206,6 +231,14 @@ costs.
 5. WHEN a VPC endpoint is created, THE Network_Module SHALL apply a `Name` tag with value
    `"${local.name_prefix}-s3-endpoint"` or `"${local.name_prefix}-dynamodb-endpoint"` respectively, plus
    all key-value pairs from the common tag set.
+6. FOR the DEV environment THE Dev_Root SHALL set `enable_vpc_endpoints = true`, enabling the S3 and
+   DynamoDB Gateway endpoints, each associated with the route table(s) used by the private subnets. These
+   are Gateway endpoints only: the Network_Module SHALL NOT create an S3 or DynamoDB interface endpoint and
+   SHALL NOT create an endpoint security group for them.
+7. THE intended private routing model SHALL be: S3 traffic uses the S3 Gateway endpoint; DynamoDB traffic
+   uses the DynamoDB Gateway endpoint; all other IPv4 outbound traffic uses the `0.0.0.0/0` route to the NAT
+   Gateway. Because a Gateway endpoint installs a more specific prefix-list route than the `0.0.0.0/0` NAT
+   route, S3 and DynamoDB traffic SHALL use those endpoints rather than the NAT default route.
 
 ---
 
@@ -279,7 +312,7 @@ duplicating resource definitions.
    `enable_nat_gateway` and `enable_vpc_endpoints`, `string` for CIDRs and names).
 5. THE Dev_Root SHALL supply values for all variables in `envs/dev/terraform.tfvars`, including
    `app_name = "eruditiontx-app"`, `environment = "ecs-dev"`, `aws_region = "us-east-1"`,
-   `enable_nat_gateway = false`, and `enable_vpc_endpoints = false`.
+   `enable_nat_gateway = true`, and `enable_vpc_endpoints = true`.
 6. WITHIN `envs/dev/`, THE Dev_Root SHALL reference network module outputs (e.g. `module.network.vpc_id`,
    `module.network.public_subnet_ids`, `module.network.private_subnet_ids`) wherever downstream resource
    definitions require network resource identifiers.

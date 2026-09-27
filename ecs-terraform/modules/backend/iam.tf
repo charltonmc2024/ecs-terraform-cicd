@@ -87,7 +87,7 @@ data "aws_iam_policy_document" "task_dynamodb" {
 
 resource "aws_iam_policy" "task_dynamodb" {
   name        = "${local.name_prefix}-ecs-task-dynamodb"
-  description = "Least-privilege DynamoDB access for the ${local.name_prefix} application task role (GetItem, PutItem, UpdateItem, Query on the App_Table and its indexes)."
+  description = "Least-privilege DynamoDB access for the ${local.name_prefix} application task role (GetItem, PutItem, UpdateItem, Query, TransactWriteItems on the App_Table and its indexes)."
   policy      = data.aws_iam_policy_document.task_dynamodb.json
 
   tags = merge(var.tags, { Name = "${local.name_prefix}-ecs-task-dynamodb" })

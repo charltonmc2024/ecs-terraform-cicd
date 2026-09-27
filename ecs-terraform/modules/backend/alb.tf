@@ -69,8 +69,9 @@ resource "aws_vpc_security_group_ingress_rule" "ecs_from_alb" {
   to_port                      = var.container_port
 }
 
-# Open egress so tasks can reach the private-egress path (ECR, CloudWatch Logs, STS,
-# etc.) provided by 01-network VPC interface endpoints or a NAT Gateway.
+# Open egress so tasks can reach the DEV private-egress path provided by 01-network:
+# the NAT Gateway for ECR/CloudWatch Logs/STS/general outbound, plus the S3 and
+# DynamoDB Gateway endpoints for those services. No interface endpoints, no endpoint SG.
 resource "aws_vpc_security_group_egress_rule" "ecs_egress_all" {
   security_group_id = aws_security_group.ecs_sg.id
   description       = "Allow ECS tasks outbound to the private-egress path."

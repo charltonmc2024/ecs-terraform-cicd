@@ -30,12 +30,14 @@ production resources are created, and no `terraform apply` is performed as part 
 
 Two connectivity facts drive the design and are stated up front because they cross module boundaries:
 
-- **Private egress (integration requirement with 01-network).** ECS Fargate tasks run in private subnets
-  with no public IP. In the current 01-network default posture the NAT Gateway is off and only S3/DynamoDB
-  Gateway endpoints are available (and only when enabled). A private task therefore cannot reach ECR,
-  CloudWatch Logs, or Secrets Manager/STS. The Backend_Module does NOT solve this by adding network
-  resources; it declares an explicit dependency that 01-network must provide private egress via VPC
-  interface endpoints (preferred for DEV) or a NAT Gateway before the ECS service can start tasks.
+- **Private egress (integration requirement with 01-network) — RESOLVED at the configuration/design
+  level.** ECS Fargate tasks run in private subnets with `assign_public_ip = false`. The 01-network DEV
+  configuration now enables `enable_nat_gateway = true` and `enable_vpc_endpoints = true`, providing one
+  NAT Gateway (with its EIP and a private `0.0.0.0/0` route) for general outbound traffic to ECR, CloudWatch
+  Logs, and STS/Secrets Manager, plus S3 and DynamoDB Gateway endpoints for that same-Region traffic. The
+  Backend_Module still adds no network resources; it consumes the egress 01-network provides. This resolves
+  the architecture/configuration dependency; actual AWS runtime connectivity (image pull, log delivery) is
+  NOT yet verified and will be confirmed only when the infrastructure is planned/applied/tested.
 - **Edge TLS ownership (integration boundary with 04-edge).** Two independent connections. Viewer →
   CloudFront is HTTPS on the default `*.cloudfront.net` domain using the CloudFront default viewer
   certificate. CloudFront VPC Origin → internal ALB is HTTP over the private VPC Origin path on
@@ -63,8 +65,9 @@ Two connectivity facts drive the design and are stated up front because they cro
   Secrets Manager if used)
 - **ALB_SG / ECS_SG**: The ALB security group and ECS task security group, both owned by the Backend_Module
 - **App_Log_Group**: The CloudWatch Logs log group receiving the application container logs
-- **Private_Egress**: The path by which private-subnet tasks reach AWS service APIs, provided by 01-network
-  via VPC interface endpoints or a NAT Gateway
+- **Private_Egress**: Outbound connectivity supplied by 01-network using the DEV NAT Gateway for general
+  required outbound traffic (ECR, CloudWatch Logs, STS), plus S3 and DynamoDB Gateway endpoints for those
+  services. No VPC interface endpoints or endpoint security group are part of the approved DEV model.
 - **AP1..AP16**: The sixteen developer-defined DynamoDB access patterns defined in the 02-data design
 
 ## Requirements
@@ -295,12 +298,15 @@ private Fargate tasks reach the AWS APIs they depend on, so the connectivity req
    applies — Secrets Manager or SSM plus STS.
 2. THE Backend_Module SHALL NOT create VPC interface endpoints, Gateway endpoints, or a NAT Gateway; it
    SHALL record Private_Egress as an integration requirement on 01-network.
-3. THE spec SHALL state the preferred DEV egress option as VPC interface endpoints for `ecr.api`,
-   `ecr.dkr`, `logs`, `sts`, and (if secrets are used) `secretsmanager`/`ssm`, plus the existing S3 Gateway
-   endpoint, with a NAT Gateway as the documented alternative.
+3. THE spec SHALL record the resolved DEV egress model provided by 01-network: one NAT Gateway carries
+   general outbound traffic to ECR (`ecr.api`, `ecr.dkr`), CloudWatch Logs (`logs`), STS, and (if secrets
+   are used) Secrets Manager/SSM, while S3 (ECR image layers) and DynamoDB (application traffic) use their
+   respective Gateway endpoints. No VPC interface endpoints and no endpoint security group are used.
 4. THE Backend_Module SHALL NOT assume public internet connectivity exists from private subnets.
-5. THE spec SHALL flag that if 01-network does not provide Private_Egress before apply, ECS tasks will fail
-   to pull the image and ship logs, and SHALL treat this as a blocking cross-module dependency.
+5. THE spec SHALL record that Private_Egress is now provided by the 01-network DEV configuration
+   (`enable_nat_gateway = true`, `enable_vpc_endpoints = true`), resolving the cross-module dependency at
+   the configuration/design level. Actual AWS runtime connectivity (image pull, log delivery) is NOT yet
+   verified and will be confirmed only when the infrastructure is planned/applied/tested.
 
 ### Requirement 12: Edge TLS and VPC Origin Boundary
 
@@ -408,24 +414,30 @@ is performed.
 ## Cross-Module Dependencies and Open Questions
 
 These were analyzed against the actual upstream module interfaces before
-finalizing this spec. Items 2–4 are resolved decisions. Item 1 is a blocking
-integration dependency on 01-network, and item 5 is a tracked assumption.
+finalizing this spec. Items 1–4 are resolved decisions, and item 5 is a tracked
+assumption. Item 1 (private egress) is resolved at the configuration/design
+level by the 01-network DEV configuration; actual AWS runtime connectivity is
+verified only when the infrastructure is planned/applied/tested.
 
-1. **Private egress (blocking integration dependency on 01-network).**
-   OPEN — The current 01-network module does not yet provide all private
-   connectivity required by ECS Fargate when the NAT Gateway is disabled.
+1. **Private egress (integration dependency on 01-network).**
+   RESOLVED (configuration/design level) — The 01-network DEV configuration now
+   sets `enable_nat_gateway = true` and `enable_vpc_endpoints = true`, and the
+   existing network implementation provides exactly one NAT Gateway (with its
+   EIP and a private `0.0.0.0/0` route to the NAT), an S3 Gateway endpoint, and
+   a DynamoDB Gateway endpoint. No VPC interface endpoints and no endpoint
+   security group are used.
 
-   Before ECS deployment, 01-network must provide the required private
-   egress through VPC interface endpoints or the NAT Gateway must be enabled.
-
-   The preferred DEV design is VPC interface endpoints for the AWS services
-   required by the application runtime, together with the existing S3 Gateway
-   endpoint where applicable.
+   The resolved DEV connectivity model is: ECR (`ecr.api`/`ecr.dkr`), CloudWatch
+   Logs, STS, and Secrets Manager/SSM egress via the NAT Gateway; S3 (including
+   ECR image-layer S3 traffic) via the S3 Gateway endpoint; DynamoDB application
+   traffic via the DynamoDB Gateway endpoint.
 
    The Backend_Module MUST NOT create NAT Gateways, VPC endpoints, route
    tables, or other network resources. These remain owned by 01-network.
 
-   This dependency must be resolved before ECS tasks are deployed.
+   NOT YET VERIFIED: no `terraform plan`/`apply` has been run for this change,
+   so actual AWS runtime connectivity (image pull, log delivery) will be
+   confirmed only when the infrastructure is eventually planned/applied/tested.
 2. **Edge TLS (two independent connections).** RESOLVED. Viewer→CloudFront uses the default
    `*.cloudfront.net` domain and the CloudFront default viewer certificate for DEV (no custom alias).
    CloudFront VPC Origin→internal ALB uses HTTP on the private VPC Origin path (`var.alb_listener_port`,

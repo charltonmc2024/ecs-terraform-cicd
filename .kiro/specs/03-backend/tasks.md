@@ -36,12 +36,14 @@ The module output surface is deliberately minimal (terraform.md steering): only 
 concrete downstream consumer. `alb_arn`, `vpc_origin_arn`, `alb_security_group_id`, and
 `ecs_security_group_id` are intentionally NOT exposed.
 
-**Blocking cross-module dependency (see Requirement 11):** private ECS Fargate tasks cannot reach ECR,
-CloudWatch Logs, or Secrets Manager without private egress. 01-network must provide VPC interface endpoints
-(`ecr.api`, `ecr.dkr`, `logs`, `sts`, plus `secretsmanager`/`ssm` if secrets are used) plus the existing S3
-Gateway endpoint, or a NAT Gateway, before the ECS service can start tasks at apply time. `fmt`/`validate`/
-`plan` succeed without it, but a real deployment does not. This plan flags the dependency and does not add
-network resources to the backend.
+**Cross-module dependency (see Requirement 11) — RESOLVED at the configuration/design level:** private
+ECS Fargate tasks reach ECR, CloudWatch Logs, and Secrets Manager/STS through the egress the 01-network DEV
+configuration now provides (`enable_nat_gateway = true`, `enable_vpc_endpoints = true`): one NAT Gateway
+for general outbound traffic plus S3 and DynamoDB Gateway endpoints for that same-Region traffic. No VPC
+interface endpoints and no endpoint security group are used. The backend adds no network resources; it
+consumes what 01-network provides. `fmt`/`validate`/`plan` do not test connectivity, so actual AWS runtime
+connectivity (image pull, log delivery) is NOT yet verified and will be confirmed only when the
+infrastructure is planned/applied/tested.
 
 This is Terraform IaC; property-based testing does not apply. Verification uses `terraform fmt`/`validate`/
 `plan` and plan-JSON invariant assertions. Applying to shared dev infrastructure is gated on operator
@@ -207,7 +209,7 @@ confirmation — this plan does NOT auto-apply.
     - _Requirements: 4.1, 4.2, 7.3, 8.2, 8.3, 9.1, 10.1, 11.2, 13.1, 13.5, 14.4, 15.3, 15.4, 15.5_
 
 - [ ] 15. Final checkpoint - operator plan review and cross-module dependency confirmation
-  - Present the reviewed clean-slate plan and invariant assertions (Properties 1-22). Explicitly confirm with the operator that 01-network provides Private_Egress (interface endpoints for `ecr.api`, `ecr.dkr`, `logs`, `sts`, S3 gateway, plus `secretsmanager`/`ssm` if secrets are used — or NAT) before any apply, since ECS tasks cannot pull the image or ship logs otherwise. Applying is gated on explicit operator confirmation — do NOT auto-apply. Ask the user before any `terraform apply`.
+  - Present the reviewed clean-slate plan and invariant assertions (Properties 1-22). Private_Egress is resolved at the configuration/design level: the 01-network DEV configuration provides one NAT Gateway (for ECR/logs/STS/Secrets egress) plus S3 and DynamoDB Gateway endpoints — no interface endpoints, no endpoint SG. At the operator review, confirm this egress against the current 01-network plan and note that actual AWS runtime connectivity (image pull, log delivery) is verified only at apply/test time, not by `plan`/`validate`. Applying is gated on explicit operator confirmation — do NOT auto-apply. Ask the user before any `terraform apply`.
 
 ## Notes
 
@@ -217,10 +219,11 @@ confirmation — this plan does NOT auto-apply.
   `private_subnet_ids`, `nat_gateway_id` and NO security groups (backend owns ALB_SG/ECS_SG); 02-data
   exposes `dynamodb_table_name`, `dynamodb_table_arn`, `dynamodb_table_id` and NO GSI-name output (index
   ARNs derived as `${table_arn}/index/*`).
-- Private egress is a BLOCKING integration requirement on 01-network. The expected connectivity to verify
-  when 01-network is extended is VPC interface endpoints for `ecr.api`, `ecr.dkr`, `logs`, `sts` (plus
-  `secretsmanager`/`ssm` if secrets are used) plus the existing S3 Gateway endpoint; NAT is the
-  alternative. The backend adds no network resources.
+- Private egress is an integration requirement on 01-network, now RESOLVED at the configuration/design
+  level: the 01-network DEV configuration provides one NAT Gateway (ECR/logs/STS/Secrets egress) plus S3
+  and DynamoDB Gateway endpoints — no VPC interface endpoints and no endpoint security group. The backend
+  adds no network resources. Actual AWS runtime connectivity is NOT yet verified and will be confirmed only
+  when the infrastructure is planned/applied/tested.
 - Edge connections: Viewer->CloudFront uses the default `*.cloudfront.net` domain and the CloudFront default
   viewer certificate (no custom alias/viewer ACM cert in DEV). CloudFront VPC Origin->ALB is HTTP
   (`var.alb_listener_port`, default 80) over the private VPC Origin path; DEV uses no ACM certificate for the

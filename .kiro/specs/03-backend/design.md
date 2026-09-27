@@ -23,11 +23,13 @@ The module composes two upstream modules and feeds one downstream module:
 
 Two connectivity boundaries are pinned before implementation:
 
-1. **Private egress is an integration requirement on 01-network** (R11). The following are the expected
-   connectivity requirements to verify when 01-network is extended — the backend implements none of them:
-   VPC interface endpoints for `ecr.api`, `ecr.dkr`, `logs`, `sts` (plus `secretsmanager`/`ssm` only when
-   secrets are used), plus the existing S3 Gateway endpoint for ECR layer blobs; a NAT Gateway is the
-   alternative. The backend adds no VPC endpoints, no NAT, and no other network resources.
+1. **Private egress is an integration requirement on 01-network** (R11) — RESOLVED at the
+   configuration/design level. The 01-network DEV configuration enables `enable_nat_gateway = true` and
+   `enable_vpc_endpoints = true`, providing one NAT Gateway (general outbound to ECR `ecr.api`/`ecr.dkr`,
+   CloudWatch Logs, STS, and Secrets Manager/SSM when secrets are used) plus S3 and DynamoDB Gateway
+   endpoints. No VPC interface endpoints and no endpoint security group are used. The backend adds no VPC
+   endpoints, no NAT, and no other network resources. Actual AWS runtime connectivity is NOT yet verified
+   and will be confirmed only when the infrastructure is planned/applied/tested.
 2. **Edge TLS ownership** (R12). The internal ALB listener is HTTP and the CloudFront VPC Origin → ALB
    connection is HTTP over the private VPC Origin path, on `var.alb_listener_port` (default 80); DEV uses no
    ACM certificate for the ALB and no `alb_listener_certificate_arn`, and the backend creates no ACM or
@@ -103,12 +105,13 @@ flowchart LR
 The backend depends on network and data (reads their outputs) and is depended upon by edge. It holds zero
 references back to edge and creates zero network/data resources, so the graph is acyclic (R4.5, R12.4).
 
-### Private egress analysis (integration requirement on 01-network)
+### Private egress analysis (integration requirement on 01-network — RESOLVED at config/design level)
 
-ECS Fargate tasks in private subnets with `assign_public_ip = false` reach AWS control/data planes only via
-one of: a NAT Gateway (outbound to public AWS endpoints) or VPC endpoints (private PrivateLink/Gateway).
-The table below lists what a task needs and how each is satisfied. The backend creates none of these; it
-records them as the Private_Egress dependency (R11).
+ECS Fargate tasks in private subnets with `assign_public_ip = false` reach AWS control/data planes via the
+egress 01-network provides. In the DEV configuration that is one NAT Gateway (outbound to public AWS
+endpoints) for general traffic plus S3 and DynamoDB Gateway endpoints for that same-Region traffic. The
+diagram below lists what a task needs and how each is satisfied. The backend creates none of these; it
+consumes the Private_Egress that 01-network provides (R11).
 
 ```mermaid
 flowchart TB
@@ -123,14 +126,15 @@ flowchart TB
     end
     Task --> EcrApi & EcrDkr & S3 & Logs & Sts & Secrets
 
-    Note["Provided by 01-network:<br/>interface endpoints (preferred DEV) OR NAT Gateway.<br/>S3 stays a Gateway endpoint.<br/>Backend creates NONE of these."]
+    Note["Provided by 01-network (DEV):<br/>NAT Gateway for ECR/logs/STS/Secrets egress.<br/>S3 and DynamoDB via Gateway endpoints.<br/>No interface endpoints. Backend creates NONE of these."]
 ```
 
-These endpoints (`ecr.api`, `ecr.dkr`, `logs`, `sts`, S3 gateway, and `secretsmanager`/`ssm` if secrets
-are used) are the checklist to verify against 01-network before apply. If 01-network provides neither
-NAT nor these interface endpoints, image pull and log shipping fail at task start. This is a blocking
-cross-module dependency (R11.5), not a backend-fixable condition, and the backend module implements no
-network resources to satisfy it.
+The DEV connectivity model is now established: ECR (`ecr.api`/`ecr.dkr`), CloudWatch Logs (`logs`), STS,
+and Secrets Manager/SSM (if secrets are used) egress via the NAT Gateway; S3 (ECR image layers) via the S3
+Gateway endpoint; DynamoDB application traffic via the DynamoDB Gateway endpoint. This resolves the
+cross-module dependency (R11.5) at the configuration/design level; the backend module implements no network
+resources to satisfy it. Actual AWS runtime connectivity (image pull, log delivery) is NOT yet verified and
+will be confirmed only when the infrastructure is eventually planned/applied/tested.
 
 ---
 
@@ -427,10 +431,12 @@ blocks, no migration (R13.3, R15.4, R15.5).
 - **Missing/invalid subnets:** `private_subnet_ids` is validated to contain at least two IDs; fewer fails
   at validate before any resource is created (R14.3).
 - **Invalid container port:** `container_port` validated to 1–65535 (R14.3).
-- **No private egress (runtime, cross-module):** if 01-network provides neither NAT nor interface
-  endpoints, `terraform plan`/`validate` still succeed (they do not test connectivity), but ECS tasks fail
-  to pull the image and ship logs at apply/run time. This is documented as a blocking dependency, not a
-  code fault the backend can guard against (R11.5).
+- **Private egress (runtime, cross-module):** the 01-network DEV configuration now provides the required
+  egress (NAT Gateway + S3/DynamoDB Gateway endpoints), so the dependency is resolved at the
+  configuration/design level. `terraform plan`/`validate` do not test connectivity, so actual image pull
+  and log delivery remain NOT yet verified and will be confirmed only when the infrastructure is
+  planned/applied/tested; this is a cross-module integration to verify at deploy time, not a code fault the
+  backend can guard against (R11.5).
 - **No count-index hazards:** the secrets wiring is gated on a `null` input and produces zero resources in
   DEV, so there is no `[0]`-index dereference risk. The ALB listener is HTTP and consumes no certificate;
   the module creates no certificate/DNS resource and adds no count-gated TLS resource.
