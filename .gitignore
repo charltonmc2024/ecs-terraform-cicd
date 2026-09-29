@@ -11,6 +11,8 @@
 
 # Terraform plan files
 *.tfplan
+tfplan
+plan.json
 
 # Terraform crash logs
 crash.log

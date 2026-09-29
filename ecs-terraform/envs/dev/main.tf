@@ -73,3 +73,26 @@ module "backend" {
   health_check_path = var.health_check_path
   image_tag         = var.image_tag
 }
+
+# The edge module owns the public entry point: the private S3 frontend bucket,
+# Origin Access Control, the CloudFront VPC Origin, and the CloudFront
+# distribution. It consumes only the internal ALB identifiers from the backend
+# module (alb_arn to build the VPC Origin, alb_dns_name as the API origin
+# domain) — never literals — preserving the network/data -> backend -> edge
+# dependency direction. alb_http_port uses the module default (80), so it is not
+# passed explicitly.
+module "edge" {
+  source = "../../modules/edge"
+
+  app_name    = var.app_name
+  environment = var.environment
+  tags = {
+    Project     = var.app_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+    Owner       = var.owner
+  }
+
+  alb_arn      = module.backend.alb_arn
+  alb_dns_name = module.backend.alb_dns_name
+}

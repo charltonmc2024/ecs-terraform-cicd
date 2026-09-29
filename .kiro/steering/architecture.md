@@ -10,21 +10,24 @@ Do not create staging or production environments unless explicitly requested.
 
 ## High-Level Request Flow
 
+For DEV, CloudFront is the public entry point on its default
+`*.cloudfront.net` domain. Route 53 and a custom ACM certificate are
+NOT part of the current DEV request flow; they are future
+custom-domain concerns (see Edge Module).
+
 Internet
    |
-Route 53
+CloudFront   (default *.cloudfront.net domain)
    |
-CloudFront
+   +---- Default behavior ----> S3 Frontend (private, via OAC)
    |
-   +---- S3 Frontend
-   |
-   +---- VPC Origin
-            |
-       Internal ALB
-            |
-       ECS Fargate
-            |
-        DynamoDB
+   +---- /api/* ----> CloudFront VPC Origin
+                          |
+                     Internal ALB (internal)
+                          |
+                     ECS Fargate (private subnets)
+                          |
+                      DynamoDB
 
 AWS Shield Standard automatically provides baseline DDoS protection
 for supported AWS services such as CloudFront.
@@ -62,15 +65,30 @@ Location:
 
 Responsibilities:
 
-- S3 frontend bucket
-- CloudFront
-- Origin Access Control
-- ACM
-- Route 53
+- Private S3 frontend bucket
+- CloudFront distribution
+- Origin Access Control (OAC)
+- CloudFront VPC Origin
 
 The S3 frontend bucket must remain private.
 
 CloudFront should access S3 through Origin Access Control.
+
+The CloudFront distribution's default behavior serves the private S3
+frontend; the `/api/*` behavior routes through the edge-owned
+CloudFront VPC Origin to the internal ALB. The edge module consumes
+`alb_arn` and `alb_dns_name` from the backend module to build the VPC
+Origin (no ALB ARN, DNS name, or VPC Origin id is hardcoded).
+
+For DEV, CloudFront uses its default `*.cloudfront.net` domain and the
+default viewer certificate; the edge module creates NO ACM certificate
+and NO Route 53 resources.
+
+ACM and Route 53 are future custom-domain capabilities: a later
+environment may add a custom viewer domain, a Route 53 hosted zone and
+records, and a custom ACM certificate in `us-east-1` (via the
+`aws.us_east_1` provider alias) without redesigning the module. None of
+these are created for DEV.
 
 AWS Shield Standard is automatic and must not be implemented as a
 separate Terraform resource.
@@ -87,7 +105,6 @@ Responsibilities:
 - Internal ALB
 - Target groups
 - ALB listener
-- CloudFront VPC Origin
 - ECS cluster
 - ECS task definition
 - ECS service
@@ -96,6 +113,12 @@ Responsibilities:
 - Secrets integration
 - Auto Scaling
 - CloudWatch application log groups
+
+The backend module does NOT own the CloudFront VPC Origin; that
+resource belongs to the edge module. The backend module exposes
+`alb_arn` and `alb_dns_name` so the edge module can build the
+CloudFront VPC Origin and set the API origin domain. The backend
+module holds no reference to the edge module.
 
 ECS tasks should run in private subnets.
 
@@ -149,17 +172,18 @@ Responsibilities:
 
 Prefer dependencies in this direction:
 
-network
-   |
-   +---- backend
-   |
-   +---- data
-   |
-   +---- edge
+network / data
+      |
+      v
+   backend
+      |
+      v
+    edge
 
-backend
-   |
-   +---- edge
+The network and data modules are upstream of the backend module; the
+backend module is upstream of the edge module. The edge module
+consumes `alb_arn` and `alb_dns_name` from the backend module. The
+backend module never references the edge module.
 
 cicd
    |
