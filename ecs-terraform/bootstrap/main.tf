@@ -20,7 +20,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~>6.62"
+      version = "~> 6.67.0"
     }
   }
   # Intentionally local state — this config bootstraps remote state for others.

@@ -8,7 +8,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 6.62"
+      version = ">= 6.67.0, < 7.0.0"
     }
   }
 }
@@ -31,8 +31,11 @@ resource "aws_dynamodb_table" "app" {
   hash_key  = "PK"
   range_key = "SK"
 
-  # AWS provider v6.x: key attributes are declared with the top-level hash_key/range_key
-  # arguments plus these attribute blocks. There is NO key_schema nested block.
+  # AWS provider v6.67: the GSIs declare their keys with key_schema blocks (attribute_name
+  # + key_type), which replaces the deprecated GSI-level hash_key/range_key. The table's own
+  # primary key still uses the top-level hash_key/range_key arguments (PK = HASH, SK = RANGE):
+  # provider 6.67 does not accept a top-level key_schema block for the table itself.
+
   # Only the six key attributes are declared; every non-key field is schemaless and
   # written by the application at runtime (see schema.tf).
   attribute {
@@ -67,9 +70,15 @@ resource "aws_dynamodb_table" "app" {
   # AP15 (item-bank admin over the full difficulty range). Projection ALL so the
   # adaptive engine gets full item parameters without a follow-up read.
   global_secondary_index {
-    name            = "GSI1"
-    hash_key        = "GSI1PK"
-    range_key       = "GSI1SK"
+    name = "GSI1"
+    key_schema {
+      attribute_name = "GSI1PK"
+      key_type       = "HASH"
+    }
+    key_schema {
+      attribute_name = "GSI1SK"
+      key_type       = "RANGE"
+    }
     projection_type = "ALL"
     # No non_key_attributes with projection_type ALL.
     # No read_capacity/write_capacity: table is PAY_PER_REQUEST.
@@ -81,9 +90,15 @@ resource "aws_dynamodb_table" "app" {
   # Serves AP10 (all results for one assignment). INCLUDE projection limits index
   # storage and write amplification to exactly the reporting fields. (cost note)
   global_secondary_index {
-    name               = "GSI2"
-    hash_key           = "GSI2PK"
-    range_key          = "GSI2SK"
+    name = "GSI2"
+    key_schema {
+      attribute_name = "GSI2PK"
+      key_type       = "HASH"
+    }
+    key_schema {
+      attribute_name = "GSI2SK"
+      key_type       = "RANGE"
+    }
     projection_type    = "INCLUDE"
     non_key_attributes = ["studentId", "score", "completedAt", "masteryBySkill"]
   }

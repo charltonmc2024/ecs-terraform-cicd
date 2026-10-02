@@ -4,6 +4,7 @@
 
 # Local Terraform working directories
 **/.terraform/
+**/.terraform-ci/
 
 # Terraform state files
 *.tfstate

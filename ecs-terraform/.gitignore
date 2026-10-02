@@ -1,13 +1,17 @@
-# Terraform
-.terraform/
+# Terraform working directories
+**/.terraform/
+**/.terraform-ci/
+
+# Terraform state files
 *.tfstate
 *.tfstate.*
-.terraform.lock.hcl
+
+# Commit .terraform.lock.hcl to Git.
 
 # Local backend configuration
 backend.config
 
-# Terraform variable files that may contain environment-specific values/secrets
+# Variable files that may contain secrets
 *.tfvars
 *.tfvars.json
 
