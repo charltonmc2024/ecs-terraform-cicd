@@ -23,3 +23,8 @@ output "nat_gateway_id" {
   description = "ID of the NAT Gateway when enable_nat_gateway is true, otherwise null."
   value       = var.enable_nat_gateway ? aws_nat_gateway.natgw[0].id : null
 }
+
+output "nat_public_ip" {
+  description = "Public Elastic IP address assigned to the NAT Gateway."
+  value       = var.enable_nat_gateway ? aws_eip.eip[0].public_ip : null
+}

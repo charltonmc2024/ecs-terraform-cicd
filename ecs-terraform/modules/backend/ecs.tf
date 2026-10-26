@@ -25,14 +25,23 @@ data "aws_region" "current" {}
 # Secrets are wired only when a secret ARN is supplied. In DEV the default is null,
 # so this evaluates to an empty list and the task definition contains no secret
 # references — zero secret wiring appears in the plan (R7). When an ARN is provided,
-# a single APP_SECRET environment secret is injected from that ARN.
+# the MongoDB Atlas connection URI is injected as the MONGODB_URL environment secret
+# from that ARN, which is exactly the variable the application reads at startup.
 locals {
-  container_secrets = var.app_secret_arn == null ? [] : [
-    {
-      name      = "APP_SECRET"
-      valueFrom = var.app_secret_arn
-    }
-  ]
+  container_secrets = concat(
+    var.app_secret_arn == null ? [] : [
+      {
+        name      = "MONGODB_URL"
+        valueFrom = var.app_secret_arn
+      }
+    ],
+    var.staff_admin_secret_arn == null ? [] : [
+      {
+        name      = "STAFF_ADMIN_MONGO_URL"
+        valueFrom = var.staff_admin_secret_arn
+      }
+    ]
+  )
 }
 
 # ECS cluster hosting the Fargate service. One cluster per environment; the service
@@ -57,8 +66,10 @@ resource "aws_ecs_task_definition" "app" {
   cpu                      = var.task_cpu
   memory                   = var.task_memory
 
-  # Two least-privilege roles: the execution role lets the ECS agent pull the image
-  # and ship logs; the task role is what the application assumes to reach DynamoDB.
+  # Two least-privilege roles: the execution role lets the ECS agent pull the image,
+  # ship logs, and read the injected MONGODB_URL secret at task start; the task role
+  # is the application's runtime identity (no AWS data-plane permissions, since the
+  # database is external MongoDB Atlas reached over the network).
   execution_role_arn = aws_iam_role.execution.arn
   task_role_arn      = aws_iam_role.task.arn
 
@@ -75,6 +86,21 @@ resource "aws_ecs_task_definition" "app" {
         }
       ]
 
+      environment = concat(
+        [
+          {
+            name  = "DB_NAME"
+            value = var.db_name
+          }
+        ],
+        var.staff_admin_db_name == null ? [] : [
+          {
+            name  = "STAFF_ADMIN_DB_NAME"
+            value = var.staff_admin_db_name
+          }
+        ]
+      )
+
       # Ship container stdout/stderr to the application log group via the awslogs
       # driver. Region comes from the data source so it is never hardcoded (R8.1).
       logConfiguration = {
@@ -87,7 +113,8 @@ resource "aws_ecs_task_definition" "app" {
       }
 
       # Empty in DEV (app_secret_arn = null); populated only when a secret ARN is
-      # supplied, keeping the DEV plan free of any secret wiring (R7).
+      # supplied, injecting the MongoDB Atlas URI as MONGODB_URL and keeping the DEV
+      # plan free of any secret wiring until then (R7).
       secrets = local.container_secrets
     }
   ])

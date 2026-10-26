@@ -12,10 +12,11 @@
 #   - In DEV, var.app_secret_arn defaults to null, so every resource below is
 #     count-gated to zero. The default DEV plan therefore contains ZERO secret
 #     resources and the task definition declares no secrets entry (R7.3).
-#   - When a concrete ARN is supplied, secret injection happens through the task
-#     definition `secrets` block (wired in ecs.tf via local.container_secrets, which
-#     is empty when var.app_secret_arn == null), and the Execution_Role is granted
-#     read access scoped to EXACTLY that one ARN — no wildcard resource (R7.2).
+#   - When a concrete ARN is supplied, the MongoDB Atlas connection URI is injected
+#     through the task definition `secrets` block as MONGODB_URL (wired in ecs.tf via
+#     local.container_secrets, which is empty when var.app_secret_arn == null), and
+#     the Execution_Role is granted read access scoped to EXACTLY that one ARN — no
+#     wildcard resource (R7.2).
 #
 # The Execution_Role (not the Task_Role) reads the secret because the ECS agent
 # resolves task-definition `secrets` at task start, before the application runs.
@@ -26,24 +27,30 @@
 # wildcard — so the execution role can read only this one secret. ssm:GetParameters is
 # included so the same wiring works whether the ARN points at Secrets Manager or an SSM
 # Parameter Store parameter; both actions are still scoped to the single ARN.
+locals {
+  mongo_secret_arns = compact([
+    var.app_secret_arn,
+    var.staff_admin_secret_arn
+  ])
+}
+
 data "aws_iam_policy_document" "execution_secret" {
-  count = var.app_secret_arn == null ? 0 : 1
+  count = length(local.mongo_secret_arns) > 0 ? 1 : 0
 
   statement {
-    sid    = "ReadAppSecret"
+    sid    = "ReadMongoSecrets"
     effect = "Allow"
 
     actions = [
-      "secretsmanager:GetSecretValue",
-      "ssm:GetParameters",
+      "secretsmanager:GetSecretValue"
     ]
 
-    resources = [var.app_secret_arn]
+    resources = local.mongo_secret_arns
   }
 }
 
 resource "aws_iam_policy" "execution_secret" {
-  count = var.app_secret_arn == null ? 0 : 1
+  count = length(local.mongo_secret_arns) > 0 ? 1 : 0
 
   name        = "${local.name_prefix}-ecs-execution-secret"
   description = "Scoped read access to exactly the injected application secret ARN for the ${local.name_prefix} ECS execution role."
@@ -53,7 +60,7 @@ resource "aws_iam_policy" "execution_secret" {
 }
 
 resource "aws_iam_role_policy_attachment" "execution_secret" {
-  count = var.app_secret_arn == null ? 0 : 1
+  count = length(local.mongo_secret_arns) > 0 ? 1 : 0
 
   role       = aws_iam_role.execution.name
   policy_arn = aws_iam_policy.execution_secret[0].arn

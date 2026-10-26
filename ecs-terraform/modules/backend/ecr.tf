@@ -24,6 +24,7 @@ resource "aws_ecr_repository" "app" {
 # number of retained tagged images so the repository does not grow unbounded
 # (R1.3). Rule numbers are evaluated in ascending priority; the untagged rule
 # runs first, then the tagged-image cap.
+
 resource "aws_ecr_lifecycle_policy" "app" {
   repository = aws_ecr_repository.app.name
 
@@ -31,24 +32,30 @@ resource "aws_ecr_lifecycle_policy" "app" {
     rules = [
       {
         rulePriority = 1
-        description  = "Expire untagged images beyond a small buffer to control DEV storage cost."
+        description  = "Expire untagged images older than 7 days"
+
         selection = {
           tagStatus   = "untagged"
-          countType   = "imageCountMoreThan"
-          countNumber = 3
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 7
         }
+
         action = {
           type = "expire"
         }
       },
       {
         rulePriority = 2
-        description  = "Cap retained tagged images so superseded builds are pruned in DEV."
+        description  = "Retain the 10 newest SHA-tagged images"
+
         selection = {
-          tagStatus   = "any"
-          countType   = "imageCountMoreThan"
-          countNumber = 10
+          tagStatus     = "tagged"
+          tagPrefixList = ["sha-"]
+          countType     = "imageCountMoreThan"
+          countNumber   = 10
         }
+
         action = {
           type = "expire"
         }

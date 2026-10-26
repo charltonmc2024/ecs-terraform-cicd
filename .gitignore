@@ -15,6 +15,10 @@
 tfplan
 plan.json
 
+# Saved Terraform plans and JSON exports
+tfplan-*
+*.tfplan.json
+
 # Terraform crash logs
 crash.log
 crash.*.log
@@ -115,7 +119,7 @@ env/
 # Ignore local/user-specific Kiro files
 .kiro/settings.local.json
 .kiro/*.local
-
+.kiro/settings/mcp.json
 
 # ==========================================
 # IDE / Editor

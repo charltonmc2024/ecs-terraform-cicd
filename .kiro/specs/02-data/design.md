@@ -1,5 +1,178 @@
 # Design Document
 
+> **Spec updated 2026-10-19 — MongoDB Atlas replaces DynamoDB.**
+>
+> The Erudition Solution project has removed DynamoDB entirely and standardized on
+> **MongoDB Atlas M0 (free tier)** as the **only** application database. There is **no
+> Terraform data module**: Atlas is an external managed service provisioned manually
+> through the Atlas console, outside Terraform. The former DynamoDB single-table design is
+> preserved **verbatim** at the bottom of this document under "Historical Appendix —
+> Superseded DynamoDB Single-Table Design." That appendix is retained for history only and
+> **MUST NOT be implemented**.
+
+## Overview
+
+The application data layer for the Erudition Solution development environment is **MongoDB
+Atlas M0** (free tier), the single application database for the platform. Atlas is an
+**external managed service**: the M0 cluster, its database, and its database users are
+created manually in the MongoDB Atlas console (AWS `us-east-1` where available), **outside
+Terraform**. There is **no `ecs-terraform/modules/data/` Terraform module** and no AWS
+resource that represents the database — the previous DynamoDB module and its
+`module "data"` call in `ecs-terraform/envs/dev/main.tf` have been removed.
+
+The application (`eruditiontx-services-mvp`, FastAPI) is MongoDB-native (Motor/Beanie). It
+connects to Atlas over TLS (`mongodb+srv`, port `27017`) using a connection URI held only
+in AWS Secrets Manager, and it creates its own MongoDB indexes at startup via `init_db()`.
+
+This design describes the end-to-end data path, the secret-injection wiring, the Atlas
+connectivity design and its M0 limitation, the application-managed index strategy,
+encryption, and the manual provisioning steps that live outside Terraform.
+
+## End-to-End Data Architecture
+
+The request path and the database egress path:
+
+```text
+Internet
+   |
+CloudFront  (default *.cloudfront.net domain, OAC to private S3 frontend)
+   |
+   +-- /api/* --> CloudFront VPC Origin
+                      |
+                 Internal ALB (internal-only)
+                      |
+                 ECS Fargate task  (private subnets, assign_public_ip = false)
+                      |
+          (outbound TLS mongodb+srv:27017 via NAT Gateway stable EIP)
+                      |
+                 MongoDB Atlas M0  (external managed service, AWS us-east-1)
+```
+
+Key points:
+
+- The frontend, the internal ALB, and the ECS tasks all remain private per their
+  architectural roles. CloudFront is the only public entry point.
+- The database is **not** inside the VPC. ECS tasks reach Atlas **outbound** over the
+  internet through the single NAT Gateway. No AWS resource represents the database.
+
+## Secret-Injection Design
+
+The MongoDB connection URI never appears in Terraform, `terraform.tfvars`, the Dockerfile,
+or the container image. It is created out of band and flows as follows:
+
+```text
+AWS Secrets Manager secret  (connection URI, created manually/CLI, uncommitted)
+        |  (ARN)
+        v
+backend module input:  app_secret_arn = "<secret ARN>"
+        |
+        v
+ECS task definition "secrets" entry:
+    name      = "MONGODB_URL"
+    valueFrom = app_secret_arn
+        |
+        v
+ECS EXECUTION role: secretsmanager:GetSecretValue scoped to EXACTLY that one ARN
+```
+
+Design decisions:
+
+- **Execution role, not task role, reads the secret.** The ECS agent (execution role)
+  resolves the `secrets` entry at task start and injects `MONGODB_URL` into the container
+  environment. The read permission is scoped to the single `app_secret_arn` — no wildcard
+  Secrets Manager access.
+- **The ECS task role holds no AWS data-plane permissions.** Because the database is
+  external MongoDB Atlas (reached over the network, not an AWS API), the task role needs
+  no DynamoDB and no other data-store permissions.
+- **No secret value in Terraform.** The backend module receives only the ARN
+  (`app_secret_arn`); the secret value is managed entirely in Secrets Manager.
+
+## Connectivity Design — NAT Egress IP + Atlas IP Access List
+
+Atlas M0 (free tier) does **not** support VPC peering or AWS PrivateLink. AWS VPC
+endpoints do not help either, because Atlas is not an AWS service. The connectivity design
+is therefore outbound internet egress with IP allow-listing:
+
+- ECS Fargate tasks run in **private subnets** with `assign_public_ip = false`.
+- Their outbound traffic to Atlas leaves the VPC through the environment's **single NAT
+  Gateway**, which presents **one stable Elastic IP**.
+- That NAT Gateway Elastic IP is added to the **Atlas IP Access List**, so Atlas accepts
+  connections from the ECS tasks. Because the NAT EIP is stable, the allow-list entry does
+  not change as tasks are replaced.
+- The connection uses TLS via `mongodb+srv` on port `27017`.
+
+```text
+ECS task (private subnet, no public IP)
+   -> private route table default route -> NAT Gateway (stable EIP X.X.X.X)
+   -> internet -> MongoDB Atlas M0 endpoint (TLS, 27017)
+Atlas IP Access List contains X.X.X.X  => connection allowed
+```
+
+This is why the single NAT Gateway in the network module is load-bearing for the data
+path: it gives a predictable egress identity that Atlas can allow-list.
+
+## Application-Startup Index Strategy
+
+MongoDB indexes are **not** created by Terraform and **not** by a separate job. The
+MongoDB-native application creates them at startup:
+
+- On boot, the FastAPI application runs `init_db()` (Motor/Beanie), which ensures the
+  required indexes exist.
+- The index set includes the application's explicit indexes (for example a **unique**
+  index on `(student_id, assignment_id)` for submissions) plus the model/repository
+  indexes defined on the Beanie document models.
+- Index creation is idempotent, so repeated startups are safe.
+
+This keeps schema/index concerns with the application code that owns the data model,
+consistent with a MongoDB-native service.
+
+## Encryption
+
+Encryption is handled entirely by Atlas and by TLS; no AWS KMS or AWS Backup resource is
+created in this spec:
+
+- **At rest:** MongoDB Atlas encrypts stored data.
+- **In transit:** TLS on the `mongodb+srv` connection.
+- The connection URI itself is protected in **AWS Secrets Manager** (which encrypts secret
+  values), referenced only by ARN.
+
+## Manual Provisioning and Out-of-Band Secret Creation
+
+The following steps happen **outside Terraform** (console/CLI), because Atlas is an
+external managed service and the secret value must never enter the repository:
+
+1. **Provision Atlas M0** in the MongoDB Atlas console (AWS `us-east-1` where available):
+   create the project, the M0 cluster, the application database, and a database user with
+   least-privilege access to that database.
+2. **Create the connection-URI secret** in AWS Secrets Manager (console or CLI) containing
+   the `mongodb+srv://...` URI. This value is never committed and never placed in
+   Terraform/tfvars/Dockerfile.
+3. **Wire the ARN** by setting `app_secret_arn` for the backend module (in the dev root /
+   tfvars at deploy time) to the secret's ARN.
+4. **Allow-list the NAT egress IP** by adding the NAT Gateway Elastic IP to the Atlas IP
+   Access List after the network infrastructure is applied.
+5. **Let the application create indexes** on first startup via `init_db()`.
+
+## Explicitly: No Terraform Data Module
+
+There is **no `ecs-terraform/modules/data/` module** and **no `module "data"` block** in
+the dev root. The Terraform configuration creates **no** AWS resource for the application
+database. Terraform's only involvement with the database is indirect: the backend module
+takes the Secrets Manager ARN via `app_secret_arn`, injects `MONGODB_URL` into the ECS
+task, and scopes the execution role's read permission to that one ARN. Everything else
+about the database is external and manual.
+
+---
+
+## Historical Appendix — Superseded DynamoDB Single-Table Design (preserved for reference, DO NOT IMPLEMENT)
+
+> The content below is the original DynamoDB single-table `02-data` design document,
+> reproduced verbatim and unchanged. It is **superseded** by the MongoDB Atlas data layer
+> described above and **must not be implemented**. It is retained for historical reference
+> only.
+
+# Design Document
+
 ## Overview
 
 This design describes a clean-slate deployment of a new reusable data module at

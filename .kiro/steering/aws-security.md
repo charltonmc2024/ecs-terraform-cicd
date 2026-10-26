@@ -78,10 +78,12 @@ Mark Terraform values as sensitive where appropriate.
 Enable encryption where appropriate for:
 
 - S3
-- DynamoDB
-- backups
 - secrets
 - CloudWatch Logs
+
+The application database is MongoDB Atlas (external managed service): encryption in
+transit (TLS) and at rest is handled by Atlas, and the connection URI is protected in
+AWS Secrets Manager rather than stored in Terraform or the container image.
 
 Use AWS-managed encryption when sufficient.
 

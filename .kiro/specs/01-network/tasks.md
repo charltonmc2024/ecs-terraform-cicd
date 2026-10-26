@@ -176,12 +176,12 @@ NOT auto-apply.
     - Assert Property 6 (no interface endpoints, no endpoint SG): zero interface `aws_vpc_endpoint` resources and zero `aws_security_group` resources in `module.network`
     - _Requirements: 11.7, 7.8, 7.9, 8.6, 8.7, 10.1, 10.2, 10.3, 10.4, 10.5_
 
-  - [x]* 13.2 Run the disabled-path sanity plan (module reusability, Property 9)
+  - [x] 13.2 Run the disabled-path sanity plan (module reusability, Property 9)
     - One-off `terraform plan` (not applied) with `enable_nat_gateway = false` and `enable_vpc_endpoints = false`
     - Confirm the module retains its `default = false` behavior: no NAT/EIP, no private `0.0.0.0/0` route, zero VPC endpoints, and `nat_gateway_id = null` — proving the module stays disableable for other environments
     - _Requirements: 6.3, 7.1, 7.5, 8.1, 8.4, 9.6, 9.7_
 
-- [~] 14. Final checkpoint - operator plan review before apply
+- [x] 14. Final checkpoint - operator plan review before apply
   - Present the reviewed clean-slate creation plan and invariant assertions to the operator. Applying to shared dev infrastructure is high-risk and gated on explicit operator confirmation — do NOT auto-apply. Ask the user before any `terraform apply`.
 
 ## Notes

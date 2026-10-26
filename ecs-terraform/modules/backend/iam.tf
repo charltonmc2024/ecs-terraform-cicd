@@ -1,11 +1,14 @@
 # iam.tf
 #
 # Two distinct, least-privilege IAM roles back the ECS Fargate task (R6.1):
-#   - Execution_Role: assumed by the ECS agent to pull the image from ECR and write
-#     container logs to CloudWatch. Uses the AWS-managed execution policy only (R6.2).
-#   - Task_Role: assumed by the running application container to call DynamoDB with
-#     exactly the four actions the 16 access patterns require, scoped to the App_Table
-#     and its indexes (R5, R6.3).
+#   - Execution_Role: assumed by the ECS agent to pull the image from ECR, write
+#     container logs to CloudWatch, and (when app_secret_arn is set) read the single
+#     injected secret. Uses the AWS-managed execution policy plus, optionally, the
+#     scoped secret-read policy in secrets.tf (R6.2).
+#   - Task_Role: assumed by the running application container as its runtime identity.
+#     The application database is MongoDB Atlas (external managed service), reached
+#     over the network using the connection URI injected from Secrets Manager, so the
+#     task role needs NO AWS data-plane permissions and carries no inline policy.
 #
 # No IAM user and no long-lived access key are created; the ECS service principal
 # assumes these roles via STS at task start, so no AWS credentials are embedded
@@ -14,6 +17,10 @@
 # Trust policy shared by both roles: only the ECS task runtime principal may assume
 # them via sts:AssumeRole. Scoping the principal to ecs-tasks.amazonaws.com keeps the
 # roles unusable by any other service or account (R6.5).
+data "aws_caller_identity" "current" {}
+
+data "aws_partition" "current" {}
+
 data "aws_iam_policy_document" "ecs_assume_role" {
   statement {
     sid     = "EcsTasksAssumeRole"
@@ -23,6 +30,20 @@ data "aws_iam_policy_document" "ecs_assume_role" {
     principals {
       type        = "Service"
       identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+
+    condition {
+      test     = "ArnLike"
+      variable = "aws:SourceArn"
+      values = [
+        "arn:${data.aws_partition.current.partition}:ecs:*:${data.aws_caller_identity.current.account_id}:*"
+      ]
     }
   }
 }
@@ -46,54 +67,17 @@ resource "aws_iam_role_policy_attachment" "execution_managed" {
 }
 
 # --- Task_Role (R6.1, R6.3) ---
-# The running application container assumes this role to reach DynamoDB. It holds only
-# the scoped DynamoDB policy below and never AdministratorAccess or wildcard permissions.
+# The running application container assumes this role as its runtime identity. The
+# application database is MongoDB Atlas (an external managed service reached over the
+# network, not an AWS API), so the task role requires NO AWS data-plane permissions
+# and carries no inline or attached policy. It never holds AdministratorAccess or
+# wildcard permissions. Reading the MongoDB connection secret is handled by the
+# EXECUTION role at task start (see secrets.tf), not by this role. If the application
+# later needs a specific AWS API (e.g. S3 object storage), a scoped policy would be
+# attached here at that time.
 resource "aws_iam_role" "task" {
   name               = "${local.name_prefix}-ecs-task"
   assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
 
   tags = merge(var.tags, { Name = "${local.name_prefix}-ecs-task" })
-}
-
-# Least-privilege DynamoDB access (R5.2, R5.3). The five actions are exactly those the
-# developer-defined access patterns AP1..AP16 use, including the answer-submission hot
-# path's atomic TransactWriteItems: no Scan, no DeleteItem, no BatchGetItem, no
-# BatchWriteItem, no dynamodb:* and no table-management actions. The resource scope is
-# exactly the App_Table ARN plus its index ARNs, derived from the injected table ARN
-# via ${var.dynamodb_table_arn}/index/* — never Resource "*" and never a hardcoded ARN.
-data "aws_iam_policy_document" "task_dynamodb" {
-  statement {
-    sid    = "AppTableLeastPrivilege"
-    effect = "Allow"
-
-    actions = [
-      "dynamodb:GetItem",
-      "dynamodb:PutItem",
-      "dynamodb:UpdateItem",
-      "dynamodb:Query",
-      # Required by the answer-submission hot path, which atomically writes the response,
-      # conditionally updates the ability estimate, and updates the seen set in one
-      # transaction. Distinct IAM action not implied by PutItem/UpdateItem; the
-      # transaction operates on base-table items, so the table ARN scope covers it.
-      "dynamodb:TransactWriteItems",
-    ]
-
-    resources = [
-      var.dynamodb_table_arn,
-      "${var.dynamodb_table_arn}/index/*",
-    ]
-  }
-}
-
-resource "aws_iam_policy" "task_dynamodb" {
-  name        = "${local.name_prefix}-ecs-task-dynamodb"
-  description = "Least-privilege DynamoDB access for the ${local.name_prefix} application task role (GetItem, PutItem, UpdateItem, Query, TransactWriteItems on the App_Table and its indexes)."
-  policy      = data.aws_iam_policy_document.task_dynamodb.json
-
-  tags = merge(var.tags, { Name = "${local.name_prefix}-ecs-task-dynamodb" })
-}
-
-resource "aws_iam_role_policy_attachment" "task_dynamodb" {
-  role       = aws_iam_role.task.name
-  policy_arn = aws_iam_policy.task_dynamodb.arn
 }

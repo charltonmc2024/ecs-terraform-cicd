@@ -22,24 +22,6 @@ output "nat_gateway_id" {
   value       = module.network.nat_gateway_id
 }
 
-# Re-export the data module's DynamoDB App_Table identifiers so the backend module,
-# CI/CD, and operators can reference the table without reaching into module internals.
-
-output "dynamodb_table_name" {
-  description = "Name of the DynamoDB App_Table created by the data module."
-  value       = module.data.dynamodb_table_name
-}
-
-output "dynamodb_table_arn" {
-  description = "ARN of the DynamoDB App_Table, used to build IAM policies for table access."
-  value       = module.data.dynamodb_table_arn
-}
-
-output "dynamodb_table_id" {
-  description = "ID of the DynamoDB App_Table created by the data module."
-  value       = module.data.dynamodb_table_id
-}
-
 # Re-export the backend module's minimized output surface. These identifiers are
 # consumed by CI/CD (image push and ECS deployment) and by 04-edge, which builds
 # the CloudFront distribution over the internal ALB via the VPC Origin.
@@ -81,4 +63,21 @@ output "cloudfront_distribution_id" {
 output "frontend_bucket_name" {
   description = "Name of the private S3 frontend bucket, used by CI/CD to upload the compiled frontend assets."
   value       = module.edge.frontend_bucket_name
+}
+# Re-export the observability module's minimal output surface so operators and
+# CI/CD can open the dashboard and (when enabled) reference the alarm SNS topic.
+
+output "observability_dashboard_name" {
+  description = "Name of the CloudWatch observability dashboard for the dev environment."
+  value       = module.observability.dashboard_name
+}
+
+output "observability_sns_topic_arn" {
+  description = "ARN of the alarm SNS topic, or null while enable_observability_sns is false."
+  value       = module.observability.sns_topic_arn
+}
+
+output "nat_public_ip" {
+  description = "Public IP address used by ECS Fargate for outbound internet traffic through the NAT Gateway."
+  value       = module.network.nat_public_ip
 }

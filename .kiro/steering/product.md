@@ -119,11 +119,23 @@ ECS tasks should run in private subnets and should not receive public IP address
 
 ### Data
 
-- DynamoDB
-- Required DynamoDB indexes
-- Backup configuration
-- KMS where justified
-- Schema documentation
+- MongoDB Atlas (M0 free tier for development)
+- Connection URI stored in AWS Secrets Manager, injected into ECS as `MONGODB_URL`
+- MongoDB indexes created by the application at startup (not by Terraform)
+
+MongoDB Atlas is the application's only database. The LMS backend application
+(`eruditiontx-services-mvp`, FastAPI) is MongoDB-native (Motor/Beanie) and remains so;
+there is no DynamoDB and no MongoDB-to-DynamoDB migration. Atlas M0 is provisioned
+manually through the Atlas console (AWS `us-east-1` where available) outside Terraform,
+because Atlas is an external managed service. There is no Terraform data module. ECS
+tasks run in private subnets and reach Atlas over the NAT Gateway's stable egress IP
+(Atlas M0 does not support VPC peering or PrivateLink); that egress IP is added to the
+Atlas IP access list. The connection URI is never stored in Terraform, tfvars, the
+Dockerfile, or any committed file — only in Secrets Manager, referenced by ARN.
+
+The `07-mongo-dynamo-migration` spec is retained for history but is SUPERSEDED by this
+decision and must not be implemented. The `ecs-terraform-cicd/ecs-application` directory
+is a static marketing site and is NOT an API consumer of this backend.
 
 ### CI/CD
 
@@ -168,14 +180,15 @@ CloudFront
                 |
           Internal ALB
                 |
-          ECS Fargate
-                |
-            DynamoDB
+          ECS Fargate --- (NAT egress / TLS) ---> MongoDB Atlas (external, M0)
 ```
 
 CloudFront is the public application entry point.
 
-The S3 frontend, internal ALB, ECS workloads, and application data resources should remain private according to their architectural roles.
+The S3 frontend, internal ALB, and ECS workloads remain private according to their
+architectural roles. The database is MongoDB Atlas, an external managed service reached
+outbound over TLS from the private ECS tasks via the NAT Gateway; no database resource
+runs inside the VPC.
 
 ---
 
@@ -222,7 +235,7 @@ Do not assume DEV-specific cost or security decisions automatically apply to sta
 
 ### Data
 
-- DynamoDB
+- MongoDB Atlas (M0 free tier for development)
 
 ### CI/CD
 

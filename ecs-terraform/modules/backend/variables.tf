@@ -50,16 +50,6 @@ variable "private_subnet_ids" {
   }
 }
 
-variable "dynamodb_table_name" {
-  description = "DynamoDB App_Table name from module.data.dynamodb_table_name (consumed only; no table is created)."
-  type        = string
-}
-
-variable "dynamodb_table_arn" {
-  description = "DynamoDB App_Table ARN from module.data.dynamodb_table_arn. Index ARNs are derived as the table ARN plus /index/* (consumed only)."
-  type        = string
-}
-
 variable "container_port" {
   description = "Container port used consistently by the task definition, target group, and ECS security group ingress."
   type        = number
@@ -137,8 +127,41 @@ variable "alb_listener_port" {
 }
 
 variable "app_secret_arn" {
-  description = "Optional Secrets Manager or SSM Parameter Store ARN to inject into the container. Default null leaves the DEV plan free of secret resources."
+  description = "Optional Secrets Manager or SSM Parameter Store ARN holding the MongoDB Atlas connection URI. When set, it is injected into the container as the MONGODB_URL environment secret and the ECS execution role is granted read access scoped to exactly this ARN. Default null leaves the DEV plan free of secret resources."
   type        = string
   default     = null
   sensitive   = true
+}
+
+variable "staff_admin_secret_arn" {
+  description = "Optional AWS Secrets Manager ARN containing the staff-admin MongoDB connection URI."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "db_name" {
+  description = "Main MongoDB database name used by the FastAPI backend."
+  type        = string
+  default     = "teacher_student_db"
+
+  validation {
+    condition     = length(trimspace(var.db_name)) > 0
+    error_message = "db_name must not be empty."
+  }
+}
+
+variable "staff_admin_db_name" {
+  description = "MongoDB database name used by the staff-admin backend."
+  type        = string
+  default     = null
+
+  validation {
+    condition = (
+      var.staff_admin_db_name == null
+      ? true
+      : length(trimspace(var.staff_admin_db_name)) > 0
+    )
+    error_message = "staff_admin_db_name must not be empty when provided."
+  }
 }

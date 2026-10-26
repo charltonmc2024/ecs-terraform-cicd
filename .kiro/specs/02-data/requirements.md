@@ -1,5 +1,273 @@
 # Requirements Document
 
+> **Spec updated 2026-10-19 — MongoDB Atlas replaces DynamoDB.**
+>
+> The Erudition Solution project has removed DynamoDB entirely and standardized on
+> **MongoDB Atlas M0 (free tier)** as the **only** application database. There is **no
+> Terraform data module** and **no AWS database resource**: Atlas is an external managed
+> service provisioned manually through the Atlas console, outside Terraform. The former
+> DynamoDB single-table design is preserved **verbatim** at the bottom of this document
+> under "Historical Appendix — Superseded DynamoDB Single-Table Design." That appendix is
+> retained for history only and **MUST NOT be implemented**.
+
+## Introduction
+
+This spec covers the application **data layer** for the Erudition Solution development
+environment, now built on **MongoDB Atlas M0** (free tier). Atlas is the single
+application database for the platform. It is an **external managed service**: the M0
+cluster, its database, and its database users are created by hand through the MongoDB
+Atlas console (AWS `us-east-1` where available), **outside Terraform**. There is no
+`ecs-terraform/modules/data/` Terraform module and no AWS resource that represents the
+database — the previous DynamoDB module has been removed from the project.
+
+The application (`eruditiontx-services-mvp`, a FastAPI service) is **MongoDB-native**
+(Motor/Beanie) and connects to Atlas directly over TLS (`mongodb+srv`, port `27017`). The
+connection URI is held only in **AWS Secrets Manager**; its ARN is passed to the backend
+module via the `app_secret_arn` input, and the backend module injects it into the ECS
+task definition's `secrets` block as the `MONGODB_URL` environment secret. The connection
+URI is never committed, never placed in Terraform/tfvars, and never baked into the
+Dockerfile or container image.
+
+Private-subnet ECS Fargate tasks (`assign_public_ip = false`) reach Atlas over the
+internet through the environment's single **NAT Gateway**, which presents one stable
+Elastic IP. That NAT egress IP is added to the **Atlas IP Access List**. Atlas M0 does
+**not** support VPC peering or AWS PrivateLink, and AWS VPC endpoints do not help because
+Atlas is not an AWS service — so NAT egress plus the Atlas IP Access List is the
+connectivity design.
+
+MongoDB indexes are created by the **application at startup** (`init_db()` via
+Motor/Beanie), not by Terraform and not by a separate job. Encryption at rest and in
+transit is handled by **Atlas**. Atlas M0 itself costs **$0**; the data path adds no new
+always-on AWS resource — the only related AWS cost is the NAT Gateway, which already
+exists for general egress.
+
+Because the database is now external and manually provisioned, this spec is largely about
+**external/manual configuration and wiring** rather than Terraform resources. The
+requirements below are therefore verified primarily by **inspection** (for example,
+confirming the absence of `aws_dynamodb_table` and `module "data"`, and confirming the
+`app_secret_arn` → `MONGODB_URL` wiring in the backend module) rather than by a
+`terraform plan` that creates database resources.
+
+## Glossary
+
+- **Atlas M0**: The MongoDB Atlas free-tier cluster used as the development application
+  database. Created manually in the Atlas console (AWS `us-east-1` where available),
+  outside Terraform. Not represented by any AWS or Terraform resource.
+- **Connection URI secret**: The MongoDB connection string (`mongodb+srv://...`) stored
+  only in **AWS Secrets Manager**, created out of band. Never committed, never in
+  Terraform/tfvars/Dockerfile/image. Referenced by ARN.
+- **MONGODB_URL**: The environment variable name under which the connection URI is
+  injected into the ECS task from Secrets Manager, via the task definition `secrets`
+  block.
+- **app_secret_arn**: The backend-module input variable that carries the Secrets Manager
+  secret ARN. The backend module wires it into the ECS task `secrets` as `MONGODB_URL`
+  and scopes the ECS execution role's read permission to exactly that ARN.
+- **NAT egress IP / Atlas IP Access List**: The single stable Elastic IP presented by the
+  environment's NAT Gateway, through which private ECS tasks egress to Atlas. That IP is
+  added to the Atlas IP Access List so Atlas accepts the connection.
+- **App-managed indexes**: MongoDB indexes created by the application at startup through
+  `init_db()` (Motor/Beanie), including the explicit indexes defined by the application
+  (for example a unique index on `(student_id, assignment_id)` for submissions) plus the
+  model/repository indexes. Not created by Terraform.
+
+---
+
+## Requirements
+
+### Requirement 1: Atlas M0 Is the Only Application Database
+
+**User Story:** As a platform engineer, I want MongoDB Atlas M0 to be the single
+application database, provisioned outside Terraform, so that the development data layer
+uses one external managed store with no AWS database resource to operate.
+
+#### Acceptance Criteria
+
+1. THE data layer SHALL use MongoDB Atlas M0 (free tier) as the only application database
+   for the development environment.
+2. THE Atlas M0 cluster, its database, and its database users SHALL be provisioned
+   manually through the MongoDB Atlas console, outside Terraform.
+3. THE project SHALL NOT contain a second application database of any kind (no DynamoDB,
+   no RDS, no in-VPC database).
+4. WHERE Atlas region selection is available, THE Atlas M0 cluster SHOULD be hosted in AWS
+   `us-east-1` to minimize latency to the ECS tasks.
+
+---
+
+### Requirement 2: No Terraform Data Module or AWS Database Resource
+
+**User Story:** As a platform engineer, I want no Terraform data module and no AWS
+database resource, so that the external Atlas service is not duplicated or partially
+managed by Terraform.
+
+#### Acceptance Criteria
+
+1. THE project SHALL NOT contain an `ecs-terraform/modules/data/` Terraform module.
+2. THE Terraform configuration SHALL NOT declare any `aws_dynamodb_table` resource.
+3. THE `ecs-terraform/envs/dev/main.tf` root SHALL NOT contain a `module "data"` block.
+4. THE Terraform configuration SHALL NOT create any AWS resource that represents or
+   provisions the application database.
+5. THE Terraform configuration SHALL NOT retain DynamoDB-related variables, outputs, or
+   IAM policies for application database access.
+
+---
+
+### Requirement 3: Connection URI Stored Only in Secrets Manager
+
+**User Story:** As a platform engineer, I want the MongoDB connection URI stored only in
+AWS Secrets Manager and injected as `MONGODB_URL`, so that the credential never lives in
+source control or the container image.
+
+#### Acceptance Criteria
+
+1. THE MongoDB connection URI SHALL be stored only in AWS Secrets Manager, created out of
+   band (manually or via CLI).
+2. THE connection URI SHALL NOT be committed to the repository, placed in any Terraform
+   file or `terraform.tfvars`, or baked into the Dockerfile or container image.
+3. THE Secrets Manager secret ARN SHALL be supplied to the backend module through the
+   `app_secret_arn` input variable.
+4. THE backend module SHALL inject the secret into the ECS task definition `secrets` block
+   as the environment variable `MONGODB_URL`.
+5. THE ECS execution role SHALL be granted read access scoped to exactly the one secret
+   ARN supplied via `app_secret_arn`, and SHALL NOT be granted broad Secrets Manager
+   access.
+
+---
+
+### Requirement 4: ECS Task Role Holds No AWS Data-Plane Permissions
+
+**User Story:** As a platform engineer, I want the ECS task role to carry no AWS
+data-plane permissions, so that least privilege is preserved now that the database is
+external.
+
+#### Acceptance Criteria
+
+1. THE ECS task role SHALL NOT include any DynamoDB permissions.
+2. THE ECS task role SHALL NOT include any AWS data-plane permissions for an application
+   database, because the application database is MongoDB Atlas, reached over the network
+   rather than through an AWS API.
+3. WHERE the task needs the connection URI, that need SHALL be satisfied by the execution
+   role reading the secret at task start and injecting `MONGODB_URL`, not by task-role
+   AWS permissions.
+
+---
+
+### Requirement 5: Private ECS Reaches Atlas via NAT Egress IP on the Atlas IP Access List
+
+**User Story:** As a platform engineer, I want private ECS tasks to reach Atlas over the
+NAT Gateway's stable egress IP, so that connectivity works without exposing tasks publicly
+and without unsupported private-connectivity mechanisms.
+
+#### Acceptance Criteria
+
+1. THE ECS Fargate tasks SHALL run in private subnets with `assign_public_ip = false`.
+2. THE ECS tasks SHALL reach Atlas outbound over the internet via the environment's single
+   NAT Gateway, which presents one stable Elastic IP.
+3. THE NAT Gateway's stable Elastic IP SHALL be added to the Atlas IP Access List so Atlas
+   accepts connections from the ECS tasks.
+4. THE data layer SHALL NOT use VPC peering, AWS PrivateLink, or VPC endpoints for Atlas
+   connectivity, because Atlas M0 does not support peering/PrivateLink and Atlas is not an
+   AWS service reachable via a VPC endpoint.
+5. THE connection SHALL use TLS (`mongodb+srv`) on port `27017`.
+
+---
+
+### Requirement 6: Application-Managed Indexes at Startup
+
+**User Story:** As a platform engineer, I want MongoDB indexes created by the application
+at startup, so that index management lives with the MongoDB-native application rather than
+in Terraform.
+
+#### Acceptance Criteria
+
+1. THE MongoDB indexes SHALL be created by the application at startup through `init_db()`
+   (Motor/Beanie).
+2. THE index set SHALL include the application's explicit indexes (for example a unique
+   index on `(student_id, assignment_id)` for submissions) plus the model/repository
+   indexes defined by the application.
+3. THE Terraform configuration SHALL NOT create MongoDB indexes.
+4. THE project SHALL NOT introduce a separate job solely to create MongoDB indexes.
+
+---
+
+### Requirement 7: Encryption Handled by Atlas
+
+**User Story:** As a platform engineer, I want encryption at rest and in transit handled
+by Atlas, so that no AWS KMS or backup resource is needed in this spec for the database.
+
+#### Acceptance Criteria
+
+1. THE encryption at rest for the application database SHALL be handled by MongoDB Atlas.
+2. THE encryption in transit SHALL be handled by TLS on the Atlas connection
+   (`mongodb+srv`).
+3. THE data layer SHALL NOT create an AWS KMS key or an AWS Backup resource for the
+   application database in this spec.
+
+---
+
+### Requirement 8: Cost — Atlas M0 Is $0, No New Always-On AWS DB Resource
+
+**User Story:** As a platform engineer, I want the data layer to add no new recurring AWS
+cost, so that the development environment stays cost-conscious.
+
+#### Acceptance Criteria
+
+1. THE Atlas M0 cluster SHALL incur $0 (free tier) for the development environment.
+2. THE data layer SHALL NOT add any new always-on AWS resource for the database.
+3. THE dominant AWS cost on the database path SHALL be the NAT Gateway (hourly plus
+   per-GB), which already exists for general egress and is not introduced by this spec.
+
+---
+
+## Out of Scope
+
+- Any Terraform `modules/data` module, `aws_dynamodb_table`, RDS, or other in-/with-AWS
+  application database resource.
+- IAM policies granting the ECS **task** role access to any AWS data store.
+- Creation of the Atlas cluster, database, users, or IP Access List entries by Terraform
+  (these are manual/console/CLI steps).
+- Creation of MongoDB indexes by Terraform or by a standalone job (indexes are created by
+  the application at startup).
+- Customer-managed KMS keys and AWS Backup resources for the database.
+- The ECS/ALB/CloudFront/network resources themselves — owned by the network, backend, and
+  edge specs. This spec only states the data-path requirements they must satisfy.
+- Staging and production environments.
+- The superseded DynamoDB single-table design (preserved below for history only).
+
+---
+
+## Verification (by inspection)
+
+Because the database is now external and manually provisioned, these requirements are
+verified primarily by inspection rather than by a Terraform plan that creates database
+resources:
+
+1. **No DynamoDB / data module** — grep the Terraform tree and confirm zero matches for
+   `aws_dynamodb_table` and for a `module "data"` block in `ecs-terraform/envs/dev/`, and
+   confirm `ecs-terraform/modules/data/` does not exist.
+2. **Secret wiring** — confirm the backend module accepts `app_secret_arn`, injects it
+   into the ECS task definition `secrets` as `MONGODB_URL`, and scopes the execution-role
+   read policy to exactly that one ARN.
+3. **Task role least privilege** — confirm the ECS task role carries no DynamoDB and no
+   application-database AWS data-plane permissions.
+4. **No secret in source** — confirm the connection URI appears in no Terraform file,
+   `terraform.tfvars`, Dockerfile, or committed `.env*` file.
+5. **Connectivity** — confirm ECS tasks run in private subnets with
+   `assign_public_ip = false` and that the NAT Gateway Elastic IP is the egress presented
+   to Atlas (added to the Atlas IP Access List out of band).
+6. **App-managed indexes** — confirm `init_db()` in the application creates the expected
+   indexes at startup.
+
+---
+
+## Historical Appendix — Superseded DynamoDB Single-Table Design (preserved for reference, DO NOT IMPLEMENT)
+
+> The content below is the original DynamoDB single-table `02-data` requirements document,
+> reproduced verbatim and unchanged. It is **superseded** by the MongoDB Atlas data layer
+> described above and **must not be implemented**. It is retained for historical reference
+> only.
+
+# Requirements Document
+
 ## Introduction
 
 This spec covers the Terraform data module for the Erudition Solution development environment. The module

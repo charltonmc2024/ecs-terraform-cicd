@@ -1,5 +1,89 @@
 # Implementation Plan: 02-data
 
+> **Spec updated 2026-10-19 — MongoDB Atlas replaces DynamoDB.**
+>
+> The Erudition Solution project has removed DynamoDB entirely and standardized on
+> **MongoDB Atlas M0 (free tier)** as the **only** application database. There is **no
+> Terraform data module**: Atlas is an external managed service provisioned manually
+> through the Atlas console, outside Terraform. The former DynamoDB single-table task plan
+> is preserved **verbatim** at the bottom of this document under "Historical Appendix —
+> Superseded DynamoDB Single-Table Design." That appendix is retained for history only and
+> **MUST NOT be implemented**.
+
+## Overview
+
+The data layer is now **MongoDB Atlas M0**, an external managed service. The previous
+DynamoDB `modules/data` module and its `module "data"` call in
+`ecs-terraform/envs/dev/main.tf` have **already been removed** — that work is DONE and is
+not re-listed as a task here.
+
+Because Atlas is external and provisioned by hand, most remaining data-layer work is
+**manual / out-of-band** (Atlas console, Secrets Manager, Atlas IP Access List) rather
+than Terraform resource creation. The only Terraform-side action is wiring the Secrets
+Manager ARN into the backend module via `app_secret_arn` (that wiring itself is owned by
+the backend spec; this plan only records the data-layer value it must carry). Each task
+below is marked **[manual]** or **[Terraform]**.
+
+## Tasks
+
+- [x] 0. Remove the DynamoDB data module (ALREADY DONE)
+  - The `ecs-terraform/modules/data/` DynamoDB module has been deleted and the
+    `module "data"` block removed from `ecs-terraform/envs/dev/main.tf`; DynamoDB-related
+    variables, outputs, and IAM policies have been removed. No further action required.
+
+- [ ] 1. Provision Atlas M0 in the Atlas console **[manual, out of band]**
+  - Create the Atlas project and the **M0** cluster (AWS `us-east-1` where available).
+  - Create the application database and a least-privilege database user for it.
+  - Do NOT create any billable Atlas tier; M0 only.
+
+- [ ] 2. Create the connection-URI secret in AWS Secrets Manager **[manual / CLI, uncommitted]**
+  - Store the `mongodb+srv://...` connection URI as a Secrets Manager secret.
+  - The value MUST NOT be committed, placed in Terraform/`terraform.tfvars`, or baked into
+    the Dockerfile/image. Record only the resulting secret **ARN** for the next step.
+
+- [ ] 3. Set `app_secret_arn` to the secret ARN at deploy time **[Terraform]**
+  - Supply the Secrets Manager secret ARN to the backend module via `app_secret_arn` in
+    the dev root / `terraform.tfvars` at deploy time, so the backend injects it as
+    `MONGODB_URL` and scopes the execution-role read policy to exactly that ARN.
+  - Pass only the ARN — never the secret value.
+
+- [ ] 4. Add the NAT Gateway EIP to the Atlas IP Access List **[manual, after apply]**
+  - After the network infrastructure is applied, take the single NAT Gateway stable
+    Elastic IP and add it to the Atlas IP Access List so Atlas accepts connections from
+    the private ECS tasks.
+  - Do NOT use VPC peering, PrivateLink, or VPC endpoints — Atlas M0 does not support them.
+
+- [ ] 5. Verify app startup connects and creates indexes **[manual verification]**
+  - Confirm the application connects to Atlas over TLS (`mongodb+srv`, port `27017`) and
+    that `init_db()` creates the expected indexes at startup (including the unique
+    `(student_id, assignment_id)` index on submissions and the model/repository indexes).
+  - Terraform creates no MongoDB indexes and no standalone index job.
+
+## Notes
+
+- There is **no Terraform data module** and **no AWS database resource**. The database is
+  external MongoDB Atlas M0, provisioned manually. Terraform's only involvement is the
+  backend module injecting `MONGODB_URL` from the Secrets Manager ARN carried by
+  `app_secret_arn`.
+- Encryption (at rest and in transit) is handled by Atlas and TLS; no AWS KMS or AWS
+  Backup resource is created for the database.
+- Cost: Atlas M0 is $0 and adds no new always-on AWS resource; the only related AWS cost
+  is the NAT Gateway, which already exists for general egress.
+- Scope: development only (`envs/dev`). Do not introduce staging/prod.
+- The `07-mongo-dynamo-migration` spec is retained for history but is SUPERSEDED by this
+  MongoDB-Atlas decision and must not be implemented.
+
+---
+
+## Historical Appendix — Superseded DynamoDB Single-Table Design (preserved for reference, DO NOT IMPLEMENT)
+
+> The content below is the original DynamoDB single-table `02-data` implementation plan,
+> reproduced verbatim and unchanged. It is **superseded** by the MongoDB Atlas data layer
+> described above and **must not be implemented**. It is retained for historical reference
+> only.
+
+# Implementation Plan: 02-data
+
 ## Overview
 
 This plan builds a NEW reusable data module at `ecs-terraform/modules/data/` and wires it into the
@@ -206,6 +290,7 @@ infrastructure is a high-risk operation gated on operator confirmation — this 
 - The module stays environment-independent and consumes no `aws_region` (region comes from the dev-root AWS provider); all dev-specific values live in `envs/dev/terraform.tfvars`, and `deletion_protection_enabled` is passed explicitly from the dev root (set to `false` for dev) rather than relying on the module default.
 - The module directory holds exactly six `.tf` files; the `terraform {}` version block and `locals { name_prefix }` block live inside `dynamodb.tf` (no `locals.tf`, no `versions.tf`).
 - Applying is gated on operator confirmation (task 12); CI runs fmt/init/validate/plan and must fail on any non-zero exit, but does not auto-apply.
+- Scope boundary: this `02-data` spec owns ONLY the DynamoDB storage infrastructure (table, indexes, encryption, backup, outputs). The MongoDB->DynamoDB application migration — the full LMS entity inventory, the data-access layer, ETL, search/aggregation replacements, uniqueness-by-reservation, and the write-paused cutover — is owned by the `07-mongo-dynamo-migration` spec. Any new GSIs or reservation/rollup item shapes that migration needs are requested FROM that spec and implemented here without altering this spec's completed task history.
 
 ## Task Dependency Graph
 

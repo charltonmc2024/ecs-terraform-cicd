@@ -1,7 +1,8 @@
+
 # -------------------------
 # 1. Install dependencies
 # -------------------------
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 
@@ -12,7 +13,7 @@ RUN npm ci
 # -------------------------
 # 2. Build Next.js app
 # -------------------------
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -25,23 +26,28 @@ RUN npm run build
 # -------------------------
 # 3. Production container
 # -------------------------
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+ENV HOSTNAME=0.0.0.0
 
+# Create non-root user
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
 
+# Copy Next.js standalone production files
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Run as non-root user
 USER nextjs
 
+# ECS Fargate container port
 EXPOSE 3000
 
+# Start Next.js production server
 CMD ["node", "server.js"]

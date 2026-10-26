@@ -27,7 +27,15 @@ CloudFront   (default *.cloudfront.net domain)
                           |
                      ECS Fargate (private subnets)
                           |
-                      DynamoDB
+             (NAT egress / TLS, outbound)
+                          |
+                     MongoDB Atlas (external managed service, M0)
+
+The database is MongoDB Atlas, provisioned outside Terraform via the Atlas
+console. Private ECS tasks reach it outbound over TLS through the NAT
+Gateway (Atlas M0 has no VPC peering/PrivateLink); the connection URI
+comes from AWS Secrets Manager, injected as MONGODB_URL. No database
+resource runs inside the VPC and there is no Terraform data module.
 
 AWS Shield Standard automatically provides baseline DDoS protection
 for supported AWS services such as CloudFront.
@@ -124,19 +132,22 @@ ECS tasks should run in private subnets.
 
 ECS tasks should not receive public IP addresses.
 
-## Data Module
+## Data (MongoDB Atlas — no Terraform module)
 
-Location:
+The application database is MongoDB Atlas (M0 free tier for development),
+an external managed service provisioned manually through the Atlas console
+outside Terraform. There is NO `modules/data/` Terraform module — it was
+removed when the project standardized on MongoDB Atlas as the only database.
 
-`modules/data/`
+Responsibilities (handled outside Terraform / by the application):
 
-Responsibilities:
-
-- DynamoDB
-- DynamoDB indexes
-- KMS where required
-- Backup configuration
-- Schema documentation
+- Atlas M0 cluster, database, and database users — created in the Atlas console.
+- Connection URI — stored in AWS Secrets Manager and injected into the ECS
+  task as `MONGODB_URL` (the backend module wires this via `app_secret_arn`).
+- MongoDB indexes — created by the application at startup (`init_db()`), not
+  by Terraform.
+- Network reachability — private ECS tasks egress to Atlas over the NAT
+  Gateway's stable IP, which is added to the Atlas IP access list.
 
 ## CI/CD Module
 
@@ -172,7 +183,7 @@ Responsibilities:
 
 Prefer dependencies in this direction:
 
-network / data
+network
       |
       v
    backend
@@ -180,10 +191,11 @@ network / data
       v
     edge
 
-The network and data modules are upstream of the backend module; the
-backend module is upstream of the edge module. The edge module
-consumes `alb_arn` and `alb_dns_name` from the backend module. The
-backend module never references the edge module.
+The network module is upstream of the backend module; the backend
+module is upstream of the edge module. The edge module consumes
+`alb_arn` and `alb_dns_name` from the backend module. The backend
+module never references the edge module. There is no data module (the
+database is external MongoDB Atlas), so no module depends on one.
 
 cicd
    |

@@ -37,3 +37,21 @@ output "ecs_service_name" {
   description = "Name of the ECS service, used by CI/CD to force a new deployment of the updated image."
   value       = aws_ecs_service.app.name
 }
+
+# ALB ARN suffix for CloudWatch metrics
+output "alb_arn_suffix" {
+  description = "ARN suffix of the Application Load Balancer."
+  value       = aws_lb.app.arn_suffix
+}
+
+# Target Group ARN suffix for CloudWatch metrics
+output "target_group_arn_suffix" {
+  description = "ARN suffix of the ALB target group."
+  value       = aws_lb_target_group.app.arn_suffix
+}
+
+# Existing ECS application log group
+output "ecs_log_group_name" {
+  description = "Name of the ECS application CloudWatch log group."
+  value       = aws_cloudwatch_log_group.app.name
+}

@@ -84,7 +84,7 @@ variable "enable_nat_gateway" {
 }
 
 variable "enable_vpc_endpoints" {
-  description = "When true, provision S3 and DynamoDB gateway VPC endpoints; disabled by default."
+  description = "When true, provision the S3 gateway VPC endpoint; disabled by default. (No DynamoDB endpoint: the database is external MongoDB Atlas.)"
   type        = bool
   default     = false
 }

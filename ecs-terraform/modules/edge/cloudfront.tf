@@ -75,6 +75,10 @@ data "aws_cloudfront_origin_request_policy" "all_viewer_except_host" {
   name = "Managed-AllViewerExceptHostHeader"
 }
 
+data "aws_cloudfront_response_headers_policy" "security" {
+  name = "Managed-SecurityHeadersPolicy"
+}
+
 # Task 5.3 — The single CloudFront distribution: the platform's only
 # internet-facing resource. Two origins (private S3 via OAC, and the internal
 # ALB via the edge-created VPC Origin) and two behaviors (default -> S3, /api/*
@@ -105,30 +109,44 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  # Default behavior serves the static frontend from S3 and may cache normally.
+
+  # Default behavior — S3 frontend
   default_cache_behavior {
-    target_origin_id       = "s3-frontend"
-    viewer_protocol_policy = "redirect-to-https"
-    cache_policy_id        = data.aws_cloudfront_cache_policy.caching_optimized.id
+    target_origin_id           = "s3-frontend"
+    viewer_protocol_policy     = "redirect-to-https"
+    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_optimized.id
+    response_headers_policy_id = data.aws_cloudfront_response_headers_policy.security.id
 
     allowed_methods = ["GET", "HEAD", "OPTIONS"]
     cached_methods  = ["GET", "HEAD"]
   }
 
-  # /api/* is evaluated before the default and routes to the internal ALB.
-  # Caching is disabled so dynamic API responses are always fresh, and the
-  # AllViewerExceptHostHeader policy forwards the request data the API needs
-  # without the viewer Host header (which the VPC/custom origin does not expect).
+  # API behavior — Internal ALB / ECS Fargate
   ordered_cache_behavior {
-    path_pattern             = "/api/*"
-    target_origin_id         = "api-vpc-origin"
-    viewer_protocol_policy   = "redirect-to-https"
-    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+    path_pattern               = "/api/*"
+    target_origin_id           = "api-vpc-origin"
+    viewer_protocol_policy     = "redirect-to-https"
+    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+    response_headers_policy_id = data.aws_cloudfront_response_headers_policy.security.id
 
     allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods  = ["GET", "HEAD"]
   }
+
+  # FastAPI v1 routes — Internal ALB / ECS Fargate
+  ordered_cache_behavior {
+    path_pattern               = "/v1/*"
+    target_origin_id           = "api-vpc-origin"
+    viewer_protocol_policy     = "redirect-to-https"
+    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+    response_headers_policy_id = data.aws_cloudfront_response_headers_policy.security.id
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods  = ["GET", "HEAD"]
+  }
+
 
   # DEV uses the default CloudFront viewer certificate on the *.cloudfront.net
   # domain; no custom alias and no ACM certificate.

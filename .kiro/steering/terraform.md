@@ -42,11 +42,13 @@ The root environment composes reusable modules and provides environment-specific
 Current modules:
 
 - network
-- data
 - backend
 - edge
 - cicd
 - observability
+
+There is no `data` module: the application database is MongoDB Atlas, an external
+managed service provisioned outside Terraform (see `architecture.md`).
 
 Modules must remain reusable and should not contain unnecessary development-specific configuration.
 
@@ -126,8 +128,6 @@ Examples, when required by downstream consumers:
 - `ecr_repository_url`
 - `ecs_cluster_name`
 - `ecs_service_name`
-- `dynamodb_table_name`
-- `dynamodb_table_arn`
 - `cloudfront_distribution_id`
 - `cloudfront_domain_name`
 - `frontend_bucket_name`
@@ -244,8 +244,10 @@ Follow the architecture defined in `architecture.md`.
 For the current application path, preserve the dependency direction:
 
 ```text id="h5ct45"
-network/data → backend → edge
+network → backend → edge
 ```
+
+There is no data module in this direction: the database is external MongoDB Atlas.
 
 Backend owns the internal ALB and ECS resources.
 
