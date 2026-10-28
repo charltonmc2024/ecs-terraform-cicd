@@ -203,3 +203,36 @@ variable "image_tag_mutability" {
     error_message = "image_tag_mutability must be MUTABLE or IMMUTABLE."
   }
 }
+
+# -----------------------------------------------------------------------------
+# Security module inputs (consumed by module.security).
+#
+# Every optional billable security capability is OFF by default so the DEV
+# baseline creates zero additional security resources. The security module is
+# mapped to the aws.us_east_1 provider alias in main.tf (CLOUDFRONT-scoped WAF
+# must live in us-east-1).
+# -----------------------------------------------------------------------------
+
+variable "enable_waf" {
+  description = "When true, module.security creates the CLOUDFRONT WAFv2 web ACL and the CloudFront distribution is associated with it. Off by default in DEV."
+  type        = bool
+  default     = false
+}
+
+variable "enable_cloudtrail" {
+  description = "When true, module.security creates a management-events-only CloudTrail trail and its S3 log bucket (unless an existing trail is reused). Off by default in DEV."
+  type        = bool
+  default     = false
+}
+
+variable "enable_security_alerts" {
+  description = "When true, module.security creates the EventBridge security-event rules and the SNS security-alerts topic they target. Off by default in DEV."
+  type        = bool
+  default     = false
+}
+
+variable "security_alerts_email" {
+  description = "Email endpoint subscribed to the SNS security-alerts topic when enable_security_alerts is true and this is non-empty. Operational configuration, never a secret; empty by default (topic with no subscription)."
+  type        = string
+  default     = ""
+}

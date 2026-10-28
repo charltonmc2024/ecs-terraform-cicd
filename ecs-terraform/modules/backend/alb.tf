@@ -39,14 +39,6 @@ resource "aws_vpc_security_group_ingress_rule" "alb_from_cloudfront" {
   to_port           = var.alb_listener_port
 }
 
-# Allow the ALB to reach the ECS tasks (and health checks) on the container port.
-resource "aws_vpc_security_group_egress_rule" "alb_egress_all" {
-  security_group_id = aws_security_group.alb_sg.id
-  description       = "Allow the ALB to forward traffic to ECS tasks."
-  ip_protocol       = "-1"
-  cidr_ipv4         = "0.0.0.0/0"
-}
-
 # Security group for the ECS Fargate tasks.
 resource "aws_security_group" "ecs_sg" {
   name        = "${local.name_prefix}-ecs-sg"
@@ -69,14 +61,48 @@ resource "aws_vpc_security_group_ingress_rule" "ecs_from_alb" {
   to_port                      = var.container_port
 }
 
-# Open egress so tasks can reach the DEV private-egress path provided by 01-network:
-# the NAT Gateway for ECR/CloudWatch Logs/STS/general outbound AND for the external
-# MongoDB Atlas database (TLS to Atlas over the NAT's stable egress IP), plus the S3
-# Gateway endpoint for S3-backed traffic. No interface endpoints, no endpoint SG.
-resource "aws_vpc_security_group_egress_rule" "ecs_egress_all" {
+# ALB egress: the internal ALB may send traffic ONLY to the ECS tasks, on the
+# application (container) port, via a security-group reference (SG-to-SG). This is
+# deliberately narrow — the ALB has no other outbound need.
+resource "aws_vpc_security_group_egress_rule" "alb_to_ecs" {
+  security_group_id            = aws_security_group.alb_sg.id
+  description                  = "Allow ALB traffic only to ECS tasks on the application port."
+  referenced_security_group_id = aws_security_group.ecs_sg.id
+
+  ip_protocol = "tcp"
+  from_port   = var.container_port
+  to_port     = var.container_port
+}
+
+# ECS task egress: private Fargate tasks are outbound-only (no public IP, ingress
+# locked to the ALB SG), so permitting egress creates no inbound exposure. Tasks
+# reach the DEV private-egress path from 01-network — the NAT Gateway for the
+# external MongoDB Atlas database and for AWS service endpoints, plus the S3
+# Gateway endpoint for S3-backed ECR image layers. Egress is split into two
+# least-privilege rules by destination port rather than a single all-protocol rule.
+
+# HTTPS (TCP 443) to AWS service endpoints over NAT / the S3 Gateway endpoint:
+# ECR API + image layers, CloudWatch Logs, Secrets Manager (MONGODB_URL at task
+# start), and STS for task-role credentials.
+resource "aws_vpc_security_group_egress_rule" "ecs_egress_https" {
   security_group_id = aws_security_group.ecs_sg.id
-  description       = "Allow ECS tasks outbound to the private-egress path."
-  ip_protocol       = "-1"
+  description       = "Allow ECS tasks HTTPS egress to AWS services (ECR, CloudWatch Logs, Secrets Manager, STS, S3) via NAT/S3 endpoint."
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+# MongoDB Atlas (TCP 27017) over TLS via the NAT Gateway's stable egress IP. The
+# application connects with a mongodb+srv:// URI (injected as MONGODB_URL from
+# Secrets Manager); SRV DNS resolves to Atlas mongod hosts that listen on 27017.
+# No credentials appear here — only the destination port is configured.
+resource "aws_vpc_security_group_egress_rule" "ecs_egress_mongodb_atlas" {
+  security_group_id = aws_security_group.ecs_sg.id
+  description       = "Allow ECS tasks TLS egress to MongoDB Atlas on 27017 via the NAT egress IP."
+  ip_protocol       = "tcp"
+  from_port         = 27017
+  to_port           = 27017
   cidr_ipv4         = "0.0.0.0/0"
 }
 

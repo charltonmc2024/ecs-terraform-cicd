@@ -28,10 +28,10 @@
 # included so the same wiring works whether the ARN points at Secrets Manager or an SSM
 # Parameter Store parameter; both actions are still scoped to the single ARN.
 locals {
-  mongo_secret_arns = compact([
+  mongo_secret_arns = distinct(compact([
     var.app_secret_arn,
     var.staff_admin_secret_arn
-  ])
+  ]))
 }
 
 data "aws_iam_policy_document" "execution_secret" {

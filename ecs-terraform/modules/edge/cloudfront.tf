@@ -84,10 +84,15 @@ data "aws_cloudfront_response_headers_policy" "security" {
 # ALB via the edge-created VPC Origin) and two behaviors (default -> S3, /api/*
 # -> API). Viewer TLS uses the default *.cloudfront.net certificate; the origin
 # hop to the ALB is HTTP over the private VPC Origin path. No aliases, no ACM,
-# no Route 53, no WAF (web_acl_id), no Origin Shield, and no Shield resource for
-# DEV.
+# no Route 53, no Origin Shield, and no Shield resource for DEV. An OPTIONAL WAFv2
+# web ACL is associated via var.web_acl_id (null = none), supplied by the Dev_Root
 resource "aws_cloudfront_distribution" "this" {
   enabled = true
+
+  # Optional WAFv2 web ACL association (CLOUDFRONT scope). Null leaves the
+  # distribution with no association; a non-null ARN comes from the security
+  # module via the Dev_Root. This module creates no WAF resource.
+  web_acl_id = var.web_acl_id
 
   # Static frontend origin: private S3 bucket reached via OAC (regional domain,
   # never the S3 website endpoint).

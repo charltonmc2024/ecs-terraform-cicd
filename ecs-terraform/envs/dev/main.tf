@@ -100,6 +100,13 @@ module "edge" {
 
   alb_arn      = module.backend.alb_arn
   alb_dns_name = module.backend.alb_dns_name
+
+  # Optional WAFv2 web ACL association. Sourced from the security module's
+  # web_acl_arn output (null while enable_waf is false, leaving the distribution
+  # with no association). Wired through module outputs only, so the
+  # network -> backend -> edge direction is preserved and no circular
+  # dependency is introduced (edge holds no reference to the security module).
+  web_acl_id = module.security.web_acl_arn
 }
 
 # The observability module is a cross-cutting, observe-only monitor of the already
@@ -138,4 +145,42 @@ module "observability" {
   # alarm actions). Email endpoint is operational config supplied via variable.
   enable_sns             = var.enable_observability_sns
   sns_notification_email = var.observability_sns_email
+}
+
+# The security module is a cross-cutting, cost-optimized security layer. It owns
+# the optional CLOUDFRONT WAFv2 web ACL, the optional management-events
+# CloudTrail trail, the optional EventBridge security rules, and the optional
+# SNS security-alerts topic — every capability gated by a default-false toggle,
+# so the DEV baseline creates zero additional security resources. It is mapped
+# to the aws.us_east_1 provider alias because a CLOUDFRONT-scoped WAFv2 web ACL
+# must be created in us-east-1. Its web_acl_arn output is consumed by the edge
+# module above (via module.edge.web_acl_id); the security module holds no
+# reference back to edge, so the network -> backend -> edge direction is
+# preserved and no circular dependency is introduced. Existing network,
+# backend, edge, and observability wiring and the MongoDB/ECS bootstrap values
+# are unchanged.
+module "security" {
+  source = "../../modules/security"
+
+  providers = {
+    aws = aws.us_east_1
+  }
+
+  app_name    = var.app_name
+  environment = var.environment
+  tags = {
+    Project     = var.app_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+    Owner       = var.owner
+  }
+
+  # Optional security capabilities — all off by default in DEV. WAF tuning
+  # (default action, rate limit, rule modes), the Known Bad Inputs toggle,
+  # CloudTrail reuse/retention, and the detective-service toggles use the
+  # module defaults (count mode, OFF) and are not overridden here.
+  enable_waf             = var.enable_waf
+  enable_cloudtrail      = var.enable_cloudtrail
+  enable_security_alerts = var.enable_security_alerts
+  security_alerts_email  = var.security_alerts_email
 }

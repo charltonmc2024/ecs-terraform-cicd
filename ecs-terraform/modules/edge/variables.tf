@@ -68,3 +68,15 @@ variable "alb_http_port" {
     error_message = "alb_http_port must be within the valid TCP port range of 1-65535."
   }
 }
+
+# Optional WAFv2 web ACL association. The ARN of a CLOUDFRONT-scope
+# aws_wafv2_web_acl is supplied by the Dev_Root from the security module's
+# web_acl_arn output (wired in a later task); this module consumes it only and
+# creates no WAF resource. Default null leaves the distribution with NO web ACL
+# association, keeping it valid and deployable when WAF is disabled. A
+# CLOUDFRONT-scoped web ACL lives in us-east-1 and is referenced by its ARN.
+variable "web_acl_id" {
+  description = "ARN of a CLOUDFRONT-scope WAFv2 web ACL to associate with the CloudFront distribution (from the security module). Null (default) leaves the distribution with no web ACL association."
+  type        = string
+  default     = null
+}
