@@ -35,19 +35,6 @@
 # CloudTrail Lake, NO CloudWatch Logs delivery, and NO customer-managed KMS key
 # (SSE-S3 AWS-managed encryption is sufficient for DEV).
 
-locals {
-  # One new trail is created only when CloudTrail is enabled AND no suitable
-  # existing trail is being reused.
-  create_trail = var.enable_cloudtrail && !var.reuse_existing_trail
-
-  # Derived names/ARNs (no hardcoded account id, region, or ARN). The trail ARN
-  # is constructed from account + region + name so the bucket policy can scope
-  # aws:SourceArn without creating a bucket<->trail dependency cycle.
-  trail_name        = "${local.name_prefix}-trail"
-  trail_bucket_name = "${local.name_prefix}-cloudtrail-logs"
-  trail_arn         = "arn:aws:cloudtrail:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:trail/${local.trail_name}"
-}
-
 # Region for the constructed trail ARN (no hardcoded region).
 data "aws_region" "current" {}
 

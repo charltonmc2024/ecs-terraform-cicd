@@ -13,36 +13,10 @@ terraform {
   }
 }
 
-# name_prefix lives here rather than in a separate locals.tf (project standard).
-locals {
-  name_prefix = "${var.app_name}-${var.environment}"
-}
 # The awslogs driver needs the deploy region, but region is not a module input
 # (it is inherited from the provider in envs/dev/providers.tf). This data source
 # resolves it at plan time so no region string is hardcoded.
 data "aws_region" "current" {}
-
-# Secrets are wired only when a secret ARN is supplied. In DEV the default is null,
-# so this evaluates to an empty list and the task definition contains no secret
-# references — zero secret wiring appears in the plan (R7). When an ARN is provided,
-# the MongoDB Atlas connection URI is injected as the MONGODB_URL environment secret
-# from that ARN, which is exactly the variable the application reads at startup.
-locals {
-  container_secrets = concat(
-    var.app_secret_arn == null ? [] : [
-      {
-        name      = "MONGODB_URL"
-        valueFrom = var.app_secret_arn
-      }
-    ],
-    var.staff_admin_secret_arn == null ? [] : [
-      {
-        name      = "STAFF_ADMIN_MONGO_URL"
-        valueFrom = var.staff_admin_secret_arn
-      }
-    ]
-  )
-}
 
 # ECS cluster hosting the Fargate service. One cluster per environment; the service
 # and task definition below run on FARGATE launch type, so no EC2 capacity is managed.

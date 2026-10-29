@@ -76,9 +76,3 @@ resource "aws_sns_topic_subscription" "alarms_email" {
   protocol  = "email"
   endpoint  = var.sns_notification_email
 }
-
-# Alarm action list consumed by every alarm in cloudwatch_alarms.tf. Empty when
-# SNS is disabled (so alarms have no actions); the single topic ARN when enabled.
-locals {
-  alarm_actions = var.enable_sns ? [aws_sns_topic.alarms[0].arn] : []
-}

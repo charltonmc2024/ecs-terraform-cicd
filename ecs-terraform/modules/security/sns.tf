@@ -97,10 +97,3 @@ resource "aws_sns_topic_subscription" "security_alerts_email" {
   protocol  = "email"
   endpoint  = var.security_alerts_email
 }
-
-# Topic ARN consumed by the EventBridge targets in eventbridge.tf (Task 7).
-# Empty list when security alerts are disabled, so a count-gated target can
-# reference it safely.
-locals {
-  security_alerts_topic_arn = one(aws_sns_topic.security_alerts[*].arn)
-}

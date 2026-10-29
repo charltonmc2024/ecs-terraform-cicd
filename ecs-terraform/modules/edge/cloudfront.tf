@@ -2,10 +2,10 @@
 #
 # Terraform loads every .tf file in this directory as one module, so file
 # separation is purely for readability (conventions steering). Following the
-# 02-data and 03-backend pattern, the module's `terraform {}` version block and
-# the `locals { name_prefix }` block live at the top of this main file rather
-# than in separate versions.tf / locals.tf files, keeping organizational-only
-# files out of the module.
+# 02-data and 03-backend pattern, the module's `terraform {}` version block
+# lives at the top of this main file rather than in a separate versions.tf,
+# keeping organizational-only files out of the module. All `locals` (including
+# name_prefix) live in locals.tf.
 #
 # This module declares NO `provider` block and NO `backend` block: it inherits
 # the AWS provider (and the `aws.us_east_1` alias, available for a future custom
@@ -20,12 +20,6 @@ terraform {
       version = ">= 6.67.0, < 7.0.0"
     }
   }
-}
-
-# Single naming base for every edge resource name and Name tag; the prefix is
-# derived once here and never recomputed inline elsewhere.
-locals {
-  name_prefix = "${var.app_name}-${var.environment}"
 }
 
 # Task 5.1 — Edge-owned CloudFront VPC Origin fronting the internal ALB.
@@ -114,7 +108,6 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-
   # Default behavior — S3 frontend
   default_cache_behavior {
     target_origin_id           = "s3-frontend"
@@ -151,7 +144,6 @@ resource "aws_cloudfront_distribution" "this" {
     allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods  = ["GET", "HEAD"]
   }
-
 
   # DEV uses the default CloudFront viewer certificate on the *.cloudfront.net
   # domain; no custom alias and no ACM certificate.

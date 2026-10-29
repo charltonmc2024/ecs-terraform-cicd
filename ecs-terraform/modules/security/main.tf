@@ -11,9 +11,9 @@
 # security-alerts topic (added by their own files in later tasks).
 #
 # Following the 04-edge / 06-observability convention, the module's terraform {}
-# version block and the locals { name_prefix } block live at the top of this
-# main file rather than in a separate versions.tf / locals.tf, keeping
-# organizational-only files out of the module.
+# version block lives at the top of this main file rather than in a separate
+# versions.tf, keeping organizational-only files out of the module. All `locals`
+# (including name_prefix) live in locals.tf.
 #
 # This module declares NO `provider` block and NO `backend` block: it inherits
 # the AWS provider from the Dev_Root at ecs-terraform/envs/dev/. Because a WAFv2
@@ -30,12 +30,6 @@ terraform {
       version = ">= 6.67.0, < 7.0.0"
     }
   }
-}
-
-# Single naming base for every security resource name and Name tag; the prefix
-# is derived once here and never recomputed inline elsewhere in the module.
-locals {
-  name_prefix = "${var.app_name}-${var.environment}"
 }
 
 # Account id used to scope resource policies (SNS topic policy, CloudTrail S3

@@ -21,19 +21,6 @@
 # The Execution_Role (not the Task_Role) reads the secret because the ECS agent
 # resolves task-definition `secrets` at task start, before the application runs.
 
-# Scoped read policy for the single supplied secret ARN. Gated on var.app_secret_arn:
-# with the DEV default (null) this document is not created at all, so no secret-read
-# permission appears in the plan. The resource is EXACTLY var.app_secret_arn — never a
-# wildcard — so the execution role can read only this one secret. ssm:GetParameters is
-# included so the same wiring works whether the ARN points at Secrets Manager or an SSM
-# Parameter Store parameter; both actions are still scoped to the single ARN.
-locals {
-  mongo_secret_arns = distinct(compact([
-    var.app_secret_arn,
-    var.staff_admin_secret_arn
-  ]))
-}
-
 data "aws_iam_policy_document" "execution_secret" {
   count = length(local.mongo_secret_arns) > 0 ? 1 : 0
 

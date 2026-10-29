@@ -71,11 +71,6 @@ variable "environment" {
 # ---------------------------------------------------------------------------
 data "aws_caller_identity" "current" {}
 
-locals {
-  account_id   = data.aws_caller_identity.current.account_id
-  state_bucket = "${var.app_name}-${var.environment}-tfstate-${local.account_id}"
-}
-
 resource "aws_s3_bucket" "tfstate" {
   bucket        = local.state_bucket
   force_destroy = true # Protect against accidental deletion of state

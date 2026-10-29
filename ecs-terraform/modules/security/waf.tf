@@ -32,14 +32,6 @@
 # counted and labeled but never blocked; the only non-count disposition is the
 # web ACL default_action, which defaults to "allow".
 
-locals {
-  # Whether each managed group / the rate rule blocks, derived from the *_mode
-  # inputs. true => Block_Mode, false => Count_Mode (the default).
-  waf_common_block    = var.waf_common_rule_set_mode == "Block_Mode"
-  waf_rate_block      = var.waf_rate_based_rule_mode == "Block_Mode"
-  waf_known_bad_block = var.waf_known_bad_inputs_mode == "Block_Mode"
-}
-
 resource "aws_wafv2_web_acl" "this" {
   count = var.enable_waf ? 1 : 0
 

@@ -2,8 +2,9 @@
 #
 # This file is the observability module's primary resource file. Following the
 # project standard (see modules/backend/ecs.tf), the technically-necessary
-# terraform {} version-constraint block and the locals { name_prefix } block live
-# here rather than in organizational-only versions.tf / locals.tf files.
+# technically-necessary terraform {} version-constraint block lives here rather
+# than in an organizational-only versions.tf. All `locals` (including name_prefix)
+# live in locals.tf.
 #
 # The six CloudWatch metric alarms (ECS CPU, ECS memory, ALB unhealthy host, ALB
 # target 5xx, ALB ELB 5xx, ALB target response-time latency) are added to this
@@ -27,12 +28,6 @@ terraform {
       version = "~> 6.67.0"
     }
   }
-}
-
-# name_prefix lives here rather than in a separate locals.tf (project standard).
-# It is the single naming base for every observability resource.
-locals {
-  name_prefix = "${var.app_name}-${var.environment}"
 }
 
 # ---------------------------------------------------------------------------
