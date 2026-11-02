@@ -81,7 +81,8 @@ data "aws_cloudfront_response_headers_policy" "security" {
 # no Route 53, no Origin Shield, and no Shield resource for DEV. An OPTIONAL WAFv2
 # web ACL is associated via var.web_acl_id (null = none), supplied by the Dev_Root
 resource "aws_cloudfront_distribution" "this" {
-  enabled = true
+  enabled             = true
+  default_root_object = "index.html"
 
   # Optional WAFv2 web ACL association (CLOUDFRONT scope). Null leaves the
   # distribution with no association; a non-null ARN comes from the security
