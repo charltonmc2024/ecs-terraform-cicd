@@ -236,3 +236,39 @@ variable "security_alerts_email" {
   type        = string
   default     = ""
 }
+
+
+
+# --- FastAPI configuration ---
+
+variable "api_mongodb_secret_arn" {
+  description = "Secrets Manager ARN for the FastAPI MongoDB connection URI."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "api_key_secret_arn" {
+  description = "Secrets Manager ARN for the FastAPI API key."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "api_image_tag" {
+  description = "FastAPI Docker image tag. Use an immutable Git SHA for deployment."
+  type        = string
+  default     = "latest"
+}
+
+variable "api_container_port" {
+  description = "FastAPI container listening port."
+  type        = number
+  default     = 8080
+}
+
+variable "api_desired_count" {
+  description = "Number of FastAPI ECS tasks. Zero during bootstrap."
+  type        = number
+  default     = 0
+}

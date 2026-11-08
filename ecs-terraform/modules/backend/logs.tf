@@ -13,6 +13,19 @@ resource "aws_cloudwatch_log_group" "app" {
   })
 }
 
+
+# FastAPI CloudWatch log group.
+# Separate from Next.js for independent troubleshooting.
+resource "aws_cloudwatch_log_group" "api" {
+  name              = "${local.name_prefix}-api"
+  retention_in_days = var.log_retention_days
+
+  tags = merge(var.tags, {
+    Name = "${local.name_prefix}-api"
+  })
+}
+
+
 # No S3 ALB access-log bucket is created here. ALB access logging stays disabled
 # in DEV; if it is needed later, the bucket belongs to a logging/observability
 # module rather than the backend (R8).

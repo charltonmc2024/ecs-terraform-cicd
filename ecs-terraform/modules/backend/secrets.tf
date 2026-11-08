@@ -52,3 +52,46 @@ resource "aws_iam_role_policy_attachment" "execution_secret" {
   role       = aws_iam_role.execution.name
   policy_arn = aws_iam_policy.execution_secret[0].arn
 }
+
+
+
+# FastAPI Secrets Manager access.
+# Grant access only to explicitly configured secret ARNs.
+
+locals {
+  api_secret_arns = compact([
+    var.api_mongodb_secret_arn,
+    var.api_key_secret_arn
+  ])
+}
+
+data "aws_iam_policy_document" "api_execution_secret" {
+  count = length(local.api_secret_arns) > 0 ? 1 : 0
+
+  statement {
+    sid     = "ReadFastAPISecrets"
+    effect  = "Allow"
+    actions = ["secretsmanager:GetSecretValue"]
+
+    resources = local.api_secret_arns
+  }
+}
+
+resource "aws_iam_policy" "api_execution_secret" {
+  count = length(local.api_secret_arns) > 0 ? 1 : 0
+
+  name        = "${local.name_prefix}-api-execution-secret"
+  description = "Scoped Secrets Manager access for FastAPI."
+  policy      = data.aws_iam_policy_document.api_execution_secret[0].json
+
+  tags = merge(var.tags, {
+    Name = "${local.name_prefix}-api-execution-secret"
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "api_execution_secret" {
+  count = length(local.api_secret_arns) > 0 ? 1 : 0
+
+  role       = aws_iam_role.api_execution.name
+  policy_arn = aws_iam_policy.api_execution_secret[0].arn
+}

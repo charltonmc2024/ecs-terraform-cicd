@@ -166,3 +166,73 @@ resource "aws_lb_listener" "http" {
     target_group_arn = aws_lb_target_group.app.arn
   }
 }
+
+
+# FastAPI target group for ECS Fargate tasks.
+# Health checks use the unauthenticated /health endpoint.
+resource "aws_lb_target_group" "api" {
+  name        = "${local.name_prefix}-api-tg"
+  target_type = "ip"
+  port        = var.api_container_port
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+
+  health_check {
+    path     = "/health"
+    protocol = "HTTP"
+    port     = "traffic-port"
+    matcher  = "200"
+  }
+
+  stickiness {
+    enabled = false
+    type    = "lb_cookie"
+  }
+
+  tags = merge(var.tags, {
+    Name = "${local.name_prefix}-api-tg"
+  })
+}
+
+
+# Route /v1/* requests to the FastAPI target group.
+# All other requests continue using the existing Next.js default action.
+resource "aws_lb_listener_rule" "api" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/v1/*"]
+    }
+  }
+}
+
+
+# Allow ALB to reach FastAPI ECS tasks on port 8080.
+resource "aws_vpc_security_group_ingress_rule" "ecs_api_from_alb" {
+  security_group_id            = aws_security_group.ecs_sg.id
+  description                  = "Allow ALB traffic to FastAPI ECS tasks."
+  referenced_security_group_id = aws_security_group.alb_sg.id
+
+  ip_protocol = "tcp"
+  from_port   = var.api_container_port
+  to_port     = var.api_container_port
+}
+
+# Allow ALB outbound traffic to FastAPI ECS tasks.
+resource "aws_vpc_security_group_egress_rule" "alb_to_api" {
+  security_group_id            = aws_security_group.alb_sg.id
+  description                  = "Allow ALB outbound traffic to FastAPI ECS tasks."
+  referenced_security_group_id = aws_security_group.ecs_sg.id
+
+  ip_protocol = "tcp"
+  from_port   = var.api_container_port
+  to_port     = var.api_container_port
+}
+

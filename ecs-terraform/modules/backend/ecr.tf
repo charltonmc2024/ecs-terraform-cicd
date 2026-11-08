@@ -63,3 +63,59 @@ resource "aws_ecr_lifecycle_policy" "app" {
     ]
   })
 }
+
+
+# FastAPI Docker image repository.
+# Separate from Next.js so each application can be built and deployed independently.
+resource "aws_ecr_repository" "api" {
+  name                 = "${local.name_prefix}-api"
+  image_tag_mutability = var.image_tag_mutability
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = merge(var.tags, {
+    Name = "${local.name_prefix}-api"
+  })
+}
+
+# FastAPI image retention policy.
+resource "aws_ecr_lifecycle_policy" "api" {
+  repository = aws_ecr_repository.api.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Expire untagged images older than 7 days"
+
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 7
+        }
+
+        action = {
+          type = "expire"
+        }
+      },
+      {
+        rulePriority = 2
+        description  = "Retain the 10 newest SHA-tagged images"
+
+        selection = {
+          tagStatus     = "tagged"
+          tagPrefixList = ["sha-"]
+          countType     = "imageCountMoreThan"
+          countNumber   = 10
+        }
+
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}

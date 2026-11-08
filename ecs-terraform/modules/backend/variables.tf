@@ -165,3 +165,48 @@ variable "staff_admin_db_name" {
     error_message = "staff_admin_db_name must not be empty when provided."
   }
 }
+
+
+# --- FastAPI configuration ---
+
+variable "api_mongodb_secret_arn" {
+  description = "Optional Secrets Manager ARN containing the FastAPI MongoDB Atlas connection URI."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "api_key_secret_arn" {
+  description = "Optional Secrets Manager ARN containing the FastAPI API key."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "api_image_tag" {
+  description = "Docker image tag for the FastAPI ECS task."
+  type        = string
+  default     = "latest"
+}
+
+variable "api_container_port" {
+  description = "Container port used by FastAPI."
+  type        = number
+  default     = 8080
+
+  validation {
+    condition     = var.api_container_port >= 1 && var.api_container_port <= 65535
+    error_message = "api_container_port must be within the valid TCP port range."
+  }
+}
+
+variable "api_desired_count" {
+  description = "Desired number of FastAPI ECS tasks. Zero during bootstrap."
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = var.api_desired_count >= 0 && floor(var.api_desired_count) == var.api_desired_count
+    error_message = "api_desired_count must be a non-negative integer."
+  }
+}

@@ -45,12 +45,21 @@ module "backend" {
 
   app_name    = var.app_name
   environment = var.environment
+
   tags = {
     Project     = var.app_name
     Environment = var.environment
     ManagedBy   = "Terraform"
     Owner       = var.owner
   }
+
+  # FastAPI ECS configuration
+  api_mongodb_secret_arn = var.api_mongodb_secret_arn
+  api_key_secret_arn     = var.api_key_secret_arn
+  api_image_tag          = var.api_image_tag
+  api_container_port     = var.api_container_port
+  api_desired_count      = var.api_desired_count
+
 
   vpc_id             = module.network.vpc_id
   private_subnet_ids = module.network.private_subnet_ids

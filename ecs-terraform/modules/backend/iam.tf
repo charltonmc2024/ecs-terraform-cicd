@@ -81,3 +81,31 @@ resource "aws_iam_role" "task" {
 
   tags = merge(var.tags, { Name = "${local.name_prefix}-ecs-task" })
 }
+
+
+# FastAPI ECS execution role.
+# Used by ECS to pull images, write logs, and retrieve configured secrets.
+resource "aws_iam_role" "api_execution" {
+  name               = "${local.name_prefix}-api-execution"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
+
+  tags = merge(var.tags, {
+    Name = "${local.name_prefix}-api-execution"
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "api_execution_managed" {
+  role       = aws_iam_role.api_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# FastAPI runtime role.
+# No AWS data-plane permissions are required for MongoDB Atlas access.
+resource "aws_iam_role" "api_task" {
+  name               = "${local.name_prefix}-api-task"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
+
+  tags = merge(var.tags, {
+    Name = "${local.name_prefix}-api-task"
+  })
+}
