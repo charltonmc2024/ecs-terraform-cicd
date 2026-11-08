@@ -1,0 +1,7 @@
+# Runtime dependencies for the read-only MongoDB demo API.
+# Lower-bound pins chosen so prebuilt wheels exist for the local interpreter
+# (incl. Python 3.14); upper bounds keep the major line stable.
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.34,<1.0
+pymongo>=4.10,<5.0
+pydantic>=2.11,<3.0

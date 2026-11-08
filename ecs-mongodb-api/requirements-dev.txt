@@ -1,0 +1,4 @@
+# Development/test dependencies (offline tests only; no Atlas connection).
+-r requirements.txt
+pytest>=8.3,<9.0
+httpx>=0.28,<1.0
