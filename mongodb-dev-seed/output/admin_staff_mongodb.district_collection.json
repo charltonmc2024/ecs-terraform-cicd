@@ -1,0 +1,48 @@
+[
+  {
+    "_id": {
+      "$oid": "00017cce82fdbea3dcd230f0"
+    },
+    "district_name": "Synthetic District 1",
+    "district_address": "101 Example Ave, Austin, TX 78701",
+    "district_logo": null,
+    "contact_first_name": "DistrictContact1",
+    "contact_middle_name": null,
+    "contact_last_name": "Synthetic",
+    "contact_email": "district1@example.com",
+    "contact_phone": "5120000000",
+    "feature_plan": "free",
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "created_by": null,
+    "updated_by": null,
+    "updated_at": null,
+    "deleted_by": null,
+    "deleted_at": null,
+    "deleted": false
+  },
+  {
+    "_id": {
+      "$oid": "0001b58850f3c335d741bce5"
+    },
+    "district_name": "Synthetic District 2",
+    "district_address": "102 Example Ave, Austin, TX 78702",
+    "district_logo": null,
+    "contact_first_name": "DistrictContact2",
+    "contact_middle_name": null,
+    "contact_last_name": "Synthetic",
+    "contact_email": "district2@example.com",
+    "contact_phone": "5120000000",
+    "feature_plan": "free",
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "created_by": null,
+    "updated_by": null,
+    "updated_at": null,
+    "deleted_by": null,
+    "deleted_at": null,
+    "deleted": false
+  }
+]

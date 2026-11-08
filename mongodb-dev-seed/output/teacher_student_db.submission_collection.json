@@ -1,0 +1,578 @@
+[
+  {
+    "_id": {
+      "$oid": "0007c6ea6ec06075d33483c4"
+    },
+    "assignment_id": {
+      "$oid": "00067dd802d19838ae6452c0"
+    },
+    "student_id": {
+      "$oid": "00049ff1e61612309bed1fc3"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "0009fe5601e2db75cc4e444b",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "00073c0c19f2e727b58443b5"
+    },
+    "assignment_id": {
+      "$oid": "00067dd802d19838ae6452c0"
+    },
+    "student_id": {
+      "$oid": "000454d3ff0eb773a936f41d"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "0009fe5601e2db75cc4e444b",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "00074b487e26ee3e1b8cc304"
+    },
+    "assignment_id": {
+      "$oid": "00067dd802d19838ae6452c0"
+    },
+    "student_id": {
+      "$oid": "0004237e8ed98dc3d264f495"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "0009fe5601e2db75cc4e444b",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007148bacd79c4f185265d2"
+    },
+    "assignment_id": {
+      "$oid": "0006b12fa278c11b4356f6e9"
+    },
+    "student_id": {
+      "$oid": "00049ff1e61612309bed1fc3"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "00090d883ead9eab2a8f8e21",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007264657e686e24fff2b15"
+    },
+    "assignment_id": {
+      "$oid": "0006b12fa278c11b4356f6e9"
+    },
+    "student_id": {
+      "$oid": "000454d3ff0eb773a936f41d"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "00090d883ead9eab2a8f8e21",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007542c850ed45ec281e6b1"
+    },
+    "assignment_id": {
+      "$oid": "0006b12fa278c11b4356f6e9"
+    },
+    "student_id": {
+      "$oid": "0004237e8ed98dc3d264f495"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "00090d883ead9eab2a8f8e21",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007987f99fab90572feca64"
+    },
+    "assignment_id": {
+      "$oid": "000687eb1663249c21b85a80"
+    },
+    "student_id": {
+      "$oid": "0004f922dfa1a42d83964cbb"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "0009651dfcf6359f7c34b4aa",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "00073dc4ad9b6f1681ea4bbf"
+    },
+    "assignment_id": {
+      "$oid": "000687eb1663249c21b85a80"
+    },
+    "student_id": {
+      "$oid": "00041ff20d03ea96752f81c0"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "0009651dfcf6359f7c34b4aa",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "00075995c9390bce9e2b01e3"
+    },
+    "assignment_id": {
+      "$oid": "000687eb1663249c21b85a80"
+    },
+    "student_id": {
+      "$oid": "0004333382e89df772b3d251"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "0009651dfcf6359f7c34b4aa",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007101326dfe431475595eb"
+    },
+    "assignment_id": {
+      "$oid": "0006bdcd4a80b80303105655"
+    },
+    "student_id": {
+      "$oid": "0004f922dfa1a42d83964cbb"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "0009a4a7a64391fb76266866",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "00079957f0f4be732121a882"
+    },
+    "assignment_id": {
+      "$oid": "0006bdcd4a80b80303105655"
+    },
+    "student_id": {
+      "$oid": "00041ff20d03ea96752f81c0"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "0009a4a7a64391fb76266866",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007f2bb88029dbd0c522437"
+    },
+    "assignment_id": {
+      "$oid": "0006bdcd4a80b80303105655"
+    },
+    "student_id": {
+      "$oid": "0004333382e89df772b3d251"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "0009a4a7a64391fb76266866",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007da8d547c63f029003ab0"
+    },
+    "assignment_id": {
+      "$oid": "0006439ed5b918ca5b5f6b39"
+    },
+    "student_id": {
+      "$oid": "00047de802d8217125decff6"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "00092f5dda332bdbee01715e",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007fa3855f13cc558b74906"
+    },
+    "assignment_id": {
+      "$oid": "0006439ed5b918ca5b5f6b39"
+    },
+    "student_id": {
+      "$oid": "0004ca9b0db38b98186746cf"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "00092f5dda332bdbee01715e",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007296d3e6c8d28be811dbd"
+    },
+    "assignment_id": {
+      "$oid": "0006439ed5b918ca5b5f6b39"
+    },
+    "student_id": {
+      "$oid": "000485175f74e3e2702ee69d"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "00092f5dda332bdbee01715e",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "00072a532b3910776023298f"
+    },
+    "assignment_id": {
+      "$oid": "000620a8d3a4cbb16b65bd10"
+    },
+    "student_id": {
+      "$oid": "00047de802d8217125decff6"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "000999f3d323dab343c50b71",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "00076d9860f32042efdc6bcb"
+    },
+    "assignment_id": {
+      "$oid": "000620a8d3a4cbb16b65bd10"
+    },
+    "student_id": {
+      "$oid": "0004ca9b0db38b98186746cf"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "000999f3d323dab343c50b71",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007c65e1e8f563392b15899"
+    },
+    "assignment_id": {
+      "$oid": "000620a8d3a4cbb16b65bd10"
+    },
+    "student_id": {
+      "$oid": "000485175f74e3e2702ee69d"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "000999f3d323dab343c50b71",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007175fb7f4a28911f6dcb0"
+    },
+    "assignment_id": {
+      "$oid": "0006701c0803b202a7ef6537"
+    },
+    "student_id": {
+      "$oid": "00048a5a5de2e6d47c2d0cba"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "00093579e9cd6c0167ac96e0",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "00071b97471709d17994a744"
+    },
+    "assignment_id": {
+      "$oid": "0006701c0803b202a7ef6537"
+    },
+    "student_id": {
+      "$oid": "0004838521b369f54ba2e105"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "00093579e9cd6c0167ac96e0",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "000792fe609d0d6ed5e97353"
+    },
+    "assignment_id": {
+      "$oid": "0006701c0803b202a7ef6537"
+    },
+    "student_id": {
+      "$oid": "00045184ff0c1e14aa575d8d"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "00093579e9cd6c0167ac96e0",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007347488c5f07651fb867c"
+    },
+    "assignment_id": {
+      "$oid": "0006066cf3f66075393e6382"
+    },
+    "student_id": {
+      "$oid": "00048a5a5de2e6d47c2d0cba"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "0009bce42c5261c321bbbb5c",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007a76f5bba7f0bfb8123e5"
+    },
+    "assignment_id": {
+      "$oid": "0006066cf3f66075393e6382"
+    },
+    "student_id": {
+      "$oid": "0004838521b369f54ba2e105"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "0009bce42c5261c321bbbb5c",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0007796b8a234893f40c243e"
+    },
+    "assignment_id": {
+      "$oid": "0006066cf3f66075393e6382"
+    },
+    "student_id": {
+      "$oid": "00045184ff0c1e14aa575d8d"
+    },
+    "total_score": 0,
+    "remarks": "PENDING",
+    "answers": [
+      {
+        "question_id": "0009bce42c5261c321bbbb5c",
+        "user_answer": "A",
+        "is_correct": false
+      }
+    ],
+    "submitted_answers": null,
+    "submitted_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  }
+]

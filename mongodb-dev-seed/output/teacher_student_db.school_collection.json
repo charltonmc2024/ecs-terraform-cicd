@@ -1,0 +1,62 @@
+[
+  {
+    "_id": {
+      "$oid": "0002f04aae58fceb8e2c1584"
+    },
+    "school_name": "Synthetic School 1",
+    "email": "school1@example.com",
+    "district_id": {
+      "$oid": "00017cce82fdbea3dcd230f0"
+    },
+    "status": "active",
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "updated_at": null
+  },
+  {
+    "_id": {
+      "$oid": "0002d0ebc9d5afae9d680ccd"
+    },
+    "school_name": "Synthetic School 2",
+    "email": "school2@example.com",
+    "district_id": {
+      "$oid": "00017cce82fdbea3dcd230f0"
+    },
+    "status": "active",
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "updated_at": null
+  },
+  {
+    "_id": {
+      "$oid": "000237038ada4b194e9cb19d"
+    },
+    "school_name": "Synthetic School 3",
+    "email": "school3@example.com",
+    "district_id": {
+      "$oid": "0001b58850f3c335d741bce5"
+    },
+    "status": "active",
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "updated_at": null
+  },
+  {
+    "_id": {
+      "$oid": "0002c756c490dc98cdeb4c92"
+    },
+    "school_name": "Synthetic School 4",
+    "email": "school4@example.com",
+    "district_id": {
+      "$oid": "0001b58850f3c335d741bce5"
+    },
+    "status": "active",
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "updated_at": null
+  }
+]

@@ -1,0 +1,378 @@
+[
+  {
+    "_id": {
+      "$oid": "0009fe5601e2db75cc4e444b"
+    },
+    "assignmentType": "Erudition",
+    "questionType": "Multiple-choice",
+    "question": "Synthetic question 1: what is 1 + 1?",
+    "questionSubject": "Math",
+    "questionDetails": null,
+    "questionId": null,
+    "questionImages": [],
+    "questionGraphs": [],
+    "choices": [
+      {
+        "id": 1,
+        "text": "2",
+        "graph": ""
+      },
+      {
+        "id": 2,
+        "text": "3",
+        "graph": ""
+      }
+    ],
+    "correctAnswer": {
+      "answers": [
+        "2"
+      ],
+      "answerDetails": null,
+      "graph": ""
+    },
+    "difficulty": "Easy",
+    "gradeLevel": 3,
+    "keywords": [
+      "synthetic",
+      "dev",
+      "q1"
+    ],
+    "points": 1,
+    "category": "1",
+    "createdDate": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "createdBy": null,
+    "deleted": false,
+    "solutions": "Synthetic worked solution for question 1: 1 + 1 = 2."
+  },
+  {
+    "_id": {
+      "$oid": "00090d883ead9eab2a8f8e21"
+    },
+    "assignmentType": "Erudition",
+    "questionType": "Multiple-choice",
+    "question": "Synthetic question 2: what is 2 + 2?",
+    "questionSubject": "Math",
+    "questionDetails": null,
+    "questionId": null,
+    "questionImages": [],
+    "questionGraphs": [],
+    "choices": [
+      {
+        "id": 1,
+        "text": "4",
+        "graph": ""
+      },
+      {
+        "id": 2,
+        "text": "5",
+        "graph": ""
+      }
+    ],
+    "correctAnswer": {
+      "answers": [
+        "4"
+      ],
+      "answerDetails": null,
+      "graph": ""
+    },
+    "difficulty": "Easy",
+    "gradeLevel": 4,
+    "keywords": [
+      "synthetic",
+      "dev",
+      "q2"
+    ],
+    "points": 1,
+    "category": "1",
+    "createdDate": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "createdBy": null,
+    "deleted": false,
+    "solutions": "Synthetic worked solution for question 2: 2 + 2 = 4."
+  },
+  {
+    "_id": {
+      "$oid": "0009651dfcf6359f7c34b4aa"
+    },
+    "assignmentType": "Erudition",
+    "questionType": "Multiple-choice",
+    "question": "Synthetic question 3: what is 3 + 3?",
+    "questionSubject": "Math",
+    "questionDetails": null,
+    "questionId": null,
+    "questionImages": [],
+    "questionGraphs": [],
+    "choices": [
+      {
+        "id": 1,
+        "text": "6",
+        "graph": ""
+      },
+      {
+        "id": 2,
+        "text": "7",
+        "graph": ""
+      }
+    ],
+    "correctAnswer": {
+      "answers": [
+        "6"
+      ],
+      "answerDetails": null,
+      "graph": ""
+    },
+    "difficulty": "Easy",
+    "gradeLevel": 5,
+    "keywords": [
+      "synthetic",
+      "dev",
+      "q3"
+    ],
+    "points": 1,
+    "category": "1",
+    "createdDate": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "createdBy": null,
+    "deleted": false,
+    "solutions": "Synthetic worked solution for question 3: 3 + 3 = 6."
+  },
+  {
+    "_id": {
+      "$oid": "0009a4a7a64391fb76266866"
+    },
+    "assignmentType": "Erudition",
+    "questionType": "Multiple-choice",
+    "question": "Synthetic question 4: what is 4 + 4?",
+    "questionSubject": "Math",
+    "questionDetails": null,
+    "questionId": null,
+    "questionImages": [],
+    "questionGraphs": [],
+    "choices": [
+      {
+        "id": 1,
+        "text": "8",
+        "graph": ""
+      },
+      {
+        "id": 2,
+        "text": "9",
+        "graph": ""
+      }
+    ],
+    "correctAnswer": {
+      "answers": [
+        "8"
+      ],
+      "answerDetails": null,
+      "graph": ""
+    },
+    "difficulty": "Easy",
+    "gradeLevel": 6,
+    "keywords": [
+      "synthetic",
+      "dev",
+      "q4"
+    ],
+    "points": 1,
+    "category": "1",
+    "createdDate": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "createdBy": null,
+    "deleted": false,
+    "solutions": "Synthetic worked solution for question 4: 4 + 4 = 8."
+  },
+  {
+    "_id": {
+      "$oid": "00092f5dda332bdbee01715e"
+    },
+    "assignmentType": "Erudition",
+    "questionType": "Multiple-choice",
+    "question": "Synthetic question 5: what is 5 + 5?",
+    "questionSubject": "Math",
+    "questionDetails": null,
+    "questionId": null,
+    "questionImages": [],
+    "questionGraphs": [],
+    "choices": [
+      {
+        "id": 1,
+        "text": "10",
+        "graph": ""
+      },
+      {
+        "id": 2,
+        "text": "11",
+        "graph": ""
+      }
+    ],
+    "correctAnswer": {
+      "answers": [
+        "10"
+      ],
+      "answerDetails": null,
+      "graph": ""
+    },
+    "difficulty": "Easy",
+    "gradeLevel": 7,
+    "keywords": [
+      "synthetic",
+      "dev",
+      "q5"
+    ],
+    "points": 1,
+    "category": "1",
+    "createdDate": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "createdBy": null,
+    "deleted": false,
+    "solutions": "Synthetic worked solution for question 5: 5 + 5 = 10."
+  },
+  {
+    "_id": {
+      "$oid": "000999f3d323dab343c50b71"
+    },
+    "assignmentType": "Erudition",
+    "questionType": "Multiple-choice",
+    "question": "Synthetic question 6: what is 6 + 6?",
+    "questionSubject": "Math",
+    "questionDetails": null,
+    "questionId": null,
+    "questionImages": [],
+    "questionGraphs": [],
+    "choices": [
+      {
+        "id": 1,
+        "text": "12",
+        "graph": ""
+      },
+      {
+        "id": 2,
+        "text": "13",
+        "graph": ""
+      }
+    ],
+    "correctAnswer": {
+      "answers": [
+        "12"
+      ],
+      "answerDetails": null,
+      "graph": ""
+    },
+    "difficulty": "Easy",
+    "gradeLevel": 8,
+    "keywords": [
+      "synthetic",
+      "dev",
+      "q6"
+    ],
+    "points": 1,
+    "category": "1",
+    "createdDate": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "createdBy": null,
+    "deleted": false,
+    "solutions": "Synthetic worked solution for question 6: 6 + 6 = 12."
+  },
+  {
+    "_id": {
+      "$oid": "00093579e9cd6c0167ac96e0"
+    },
+    "assignmentType": "Erudition",
+    "questionType": "Multiple-choice",
+    "question": "Synthetic question 7: what is 7 + 7?",
+    "questionSubject": "Math",
+    "questionDetails": null,
+    "questionId": null,
+    "questionImages": [],
+    "questionGraphs": [],
+    "choices": [
+      {
+        "id": 1,
+        "text": "14",
+        "graph": ""
+      },
+      {
+        "id": 2,
+        "text": "15",
+        "graph": ""
+      }
+    ],
+    "correctAnswer": {
+      "answers": [
+        "14"
+      ],
+      "answerDetails": null,
+      "graph": ""
+    },
+    "difficulty": "Easy",
+    "gradeLevel": 9,
+    "keywords": [
+      "synthetic",
+      "dev",
+      "q7"
+    ],
+    "points": 1,
+    "category": "1",
+    "createdDate": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "createdBy": null,
+    "deleted": false,
+    "solutions": "Synthetic worked solution for question 7: 7 + 7 = 14."
+  },
+  {
+    "_id": {
+      "$oid": "0009bce42c5261c321bbbb5c"
+    },
+    "assignmentType": "Erudition",
+    "questionType": "Multiple-choice",
+    "question": "Synthetic question 8: what is 8 + 8?",
+    "questionSubject": "Math",
+    "questionDetails": null,
+    "questionId": null,
+    "questionImages": [],
+    "questionGraphs": [],
+    "choices": [
+      {
+        "id": 1,
+        "text": "16",
+        "graph": ""
+      },
+      {
+        "id": 2,
+        "text": "17",
+        "graph": ""
+      }
+    ],
+    "correctAnswer": {
+      "answers": [
+        "16"
+      ],
+      "answerDetails": null,
+      "graph": ""
+    },
+    "difficulty": "Easy",
+    "gradeLevel": 10,
+    "keywords": [
+      "synthetic",
+      "dev",
+      "q8"
+    ],
+    "points": 1,
+    "category": "1",
+    "createdDate": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "createdBy": null,
+    "deleted": false,
+    "solutions": "Synthetic worked solution for question 8: 8 + 8 = 16."
+  }
+]

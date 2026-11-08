@@ -1,0 +1,314 @@
+[
+  {
+    "_id": {
+      "$oid": "00067dd802d19838ae6452c0"
+    },
+    "semester": "spring",
+    "type": "custom-test",
+    "category": "current",
+    "format": "standard",
+    "title": "Synthetic Assignment 1",
+    "description": "Synthetic assignment number 1 for development.",
+    "questions": [
+      "0009fe5601e2db75cc4e444b"
+    ],
+    "assigned_class": [
+      {
+        "$oid": "00057ed8eea4f8a7c35edee3"
+      }
+    ],
+    "date_open": null,
+    "date_close": null,
+    "settings": {
+      "time_allowed": "01:00:00",
+      "allowed_attempts": 1,
+      "shuffle_questions": false,
+      "shuffle_choices": false,
+      "allow_calculator": false,
+      "show_score_after_submit": false,
+      "show_correct_answers_after_submit": false,
+      "allow_feedback_after_submit": false
+    },
+    "deleted": false,
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "created_by": null,
+    "dedupe_key": "synthetic-assignment-1",
+    "updated_at": null,
+    "passing_grade": 70
+  },
+  {
+    "_id": {
+      "$oid": "0006b12fa278c11b4356f6e9"
+    },
+    "semester": "spring",
+    "type": "custom-test",
+    "category": "current",
+    "format": "standard",
+    "title": "Synthetic Assignment 2",
+    "description": "Synthetic assignment number 2 for development.",
+    "questions": [
+      "00090d883ead9eab2a8f8e21"
+    ],
+    "assigned_class": [
+      {
+        "$oid": "00057ed8eea4f8a7c35edee3"
+      }
+    ],
+    "date_open": null,
+    "date_close": null,
+    "settings": {
+      "time_allowed": "01:00:00",
+      "allowed_attempts": 1,
+      "shuffle_questions": false,
+      "shuffle_choices": false,
+      "allow_calculator": false,
+      "show_score_after_submit": false,
+      "show_correct_answers_after_submit": false,
+      "allow_feedback_after_submit": false
+    },
+    "deleted": false,
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "created_by": null,
+    "dedupe_key": "synthetic-assignment-2",
+    "updated_at": null,
+    "passing_grade": 70
+  },
+  {
+    "_id": {
+      "$oid": "000687eb1663249c21b85a80"
+    },
+    "semester": "spring",
+    "type": "custom-test",
+    "category": "current",
+    "format": "standard",
+    "title": "Synthetic Assignment 3",
+    "description": "Synthetic assignment number 3 for development.",
+    "questions": [
+      "0009651dfcf6359f7c34b4aa"
+    ],
+    "assigned_class": [
+      {
+        "$oid": "0005b93beb1af6d145bbe0cb"
+      }
+    ],
+    "date_open": null,
+    "date_close": null,
+    "settings": {
+      "time_allowed": "01:00:00",
+      "allowed_attempts": 1,
+      "shuffle_questions": false,
+      "shuffle_choices": false,
+      "allow_calculator": false,
+      "show_score_after_submit": false,
+      "show_correct_answers_after_submit": false,
+      "allow_feedback_after_submit": false
+    },
+    "deleted": false,
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "created_by": null,
+    "dedupe_key": "synthetic-assignment-3",
+    "updated_at": null,
+    "passing_grade": 70
+  },
+  {
+    "_id": {
+      "$oid": "0006bdcd4a80b80303105655"
+    },
+    "semester": "spring",
+    "type": "custom-test",
+    "category": "current",
+    "format": "standard",
+    "title": "Synthetic Assignment 4",
+    "description": "Synthetic assignment number 4 for development.",
+    "questions": [
+      "0009a4a7a64391fb76266866"
+    ],
+    "assigned_class": [
+      {
+        "$oid": "0005b93beb1af6d145bbe0cb"
+      }
+    ],
+    "date_open": null,
+    "date_close": null,
+    "settings": {
+      "time_allowed": "01:00:00",
+      "allowed_attempts": 1,
+      "shuffle_questions": false,
+      "shuffle_choices": false,
+      "allow_calculator": false,
+      "show_score_after_submit": false,
+      "show_correct_answers_after_submit": false,
+      "allow_feedback_after_submit": false
+    },
+    "deleted": false,
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "created_by": null,
+    "dedupe_key": "synthetic-assignment-4",
+    "updated_at": null,
+    "passing_grade": 70
+  },
+  {
+    "_id": {
+      "$oid": "0006439ed5b918ca5b5f6b39"
+    },
+    "semester": "spring",
+    "type": "custom-test",
+    "category": "current",
+    "format": "standard",
+    "title": "Synthetic Assignment 5",
+    "description": "Synthetic assignment number 5 for development.",
+    "questions": [
+      "00092f5dda332bdbee01715e"
+    ],
+    "assigned_class": [
+      {
+        "$oid": "000522108f55fb3db78ca705"
+      }
+    ],
+    "date_open": null,
+    "date_close": null,
+    "settings": {
+      "time_allowed": "01:00:00",
+      "allowed_attempts": 1,
+      "shuffle_questions": false,
+      "shuffle_choices": false,
+      "allow_calculator": false,
+      "show_score_after_submit": false,
+      "show_correct_answers_after_submit": false,
+      "allow_feedback_after_submit": false
+    },
+    "deleted": false,
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "created_by": null,
+    "dedupe_key": "synthetic-assignment-5",
+    "updated_at": null,
+    "passing_grade": 70
+  },
+  {
+    "_id": {
+      "$oid": "000620a8d3a4cbb16b65bd10"
+    },
+    "semester": "spring",
+    "type": "custom-test",
+    "category": "current",
+    "format": "standard",
+    "title": "Synthetic Assignment 6",
+    "description": "Synthetic assignment number 6 for development.",
+    "questions": [
+      "000999f3d323dab343c50b71"
+    ],
+    "assigned_class": [
+      {
+        "$oid": "000522108f55fb3db78ca705"
+      }
+    ],
+    "date_open": null,
+    "date_close": null,
+    "settings": {
+      "time_allowed": "01:00:00",
+      "allowed_attempts": 1,
+      "shuffle_questions": false,
+      "shuffle_choices": false,
+      "allow_calculator": false,
+      "show_score_after_submit": false,
+      "show_correct_answers_after_submit": false,
+      "allow_feedback_after_submit": false
+    },
+    "deleted": false,
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "created_by": null,
+    "dedupe_key": "synthetic-assignment-6",
+    "updated_at": null,
+    "passing_grade": 70
+  },
+  {
+    "_id": {
+      "$oid": "0006701c0803b202a7ef6537"
+    },
+    "semester": "spring",
+    "type": "custom-test",
+    "category": "current",
+    "format": "standard",
+    "title": "Synthetic Assignment 7",
+    "description": "Synthetic assignment number 7 for development.",
+    "questions": [
+      "00093579e9cd6c0167ac96e0"
+    ],
+    "assigned_class": [
+      {
+        "$oid": "0005267e82c37f00063f6dab"
+      }
+    ],
+    "date_open": null,
+    "date_close": null,
+    "settings": {
+      "time_allowed": "01:00:00",
+      "allowed_attempts": 1,
+      "shuffle_questions": false,
+      "shuffle_choices": false,
+      "allow_calculator": false,
+      "show_score_after_submit": false,
+      "show_correct_answers_after_submit": false,
+      "allow_feedback_after_submit": false
+    },
+    "deleted": false,
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "created_by": null,
+    "dedupe_key": "synthetic-assignment-7",
+    "updated_at": null,
+    "passing_grade": 70
+  },
+  {
+    "_id": {
+      "$oid": "0006066cf3f66075393e6382"
+    },
+    "semester": "spring",
+    "type": "custom-test",
+    "category": "current",
+    "format": "standard",
+    "title": "Synthetic Assignment 8",
+    "description": "Synthetic assignment number 8 for development.",
+    "questions": [
+      "0009bce42c5261c321bbbb5c"
+    ],
+    "assigned_class": [
+      {
+        "$oid": "0005267e82c37f00063f6dab"
+      }
+    ],
+    "date_open": null,
+    "date_close": null,
+    "settings": {
+      "time_allowed": "01:00:00",
+      "allowed_attempts": 1,
+      "shuffle_questions": false,
+      "shuffle_choices": false,
+      "allow_calculator": false,
+      "show_score_after_submit": false,
+      "show_correct_answers_after_submit": false,
+      "allow_feedback_after_submit": false
+    },
+    "deleted": false,
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "created_by": null,
+    "dedupe_key": "synthetic-assignment-8",
+    "updated_at": null,
+    "passing_grade": 70
+  }
+]

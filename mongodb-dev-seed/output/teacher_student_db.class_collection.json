@@ -1,0 +1,294 @@
+[
+  {
+    "_id": {
+      "$oid": "00057ed8eea4f8a7c35edee3"
+    },
+    "title": "Synthetic Class 1",
+    "description": "",
+    "section": "SEC-01",
+    "semester": "Fall",
+    "class_code": "SYN001",
+    "schedules": [],
+    "status": "VISIBLE",
+    "teacher": {
+      "_id": {
+        "$oid": "0003077ace3e18ed1c535c3b"
+      },
+      "subscriber_id": null,
+      "auth0_user_id": "auth0|SYNTHETIC-teacher-000000000000000001",
+      "first_name": "Teacher0001",
+      "last_name": "Synthetic",
+      "email": "teacher0001@example.com"
+    },
+    "students": [
+      {
+        "_id": {
+          "$oid": "00049ff1e61612309bed1fc3"
+        },
+        "subscriber_id": null,
+        "auth0_user_id": "auth0|SYNTHETIC-student-000000000000000001",
+        "first_name": "Student0001",
+        "middle_name": null,
+        "last_name": "Synthetic",
+        "email": "student0001@example.com",
+        "status": "active",
+        "is_requesting_to_leave": false
+      },
+      {
+        "_id": {
+          "$oid": "000454d3ff0eb773a936f41d"
+        },
+        "subscriber_id": null,
+        "auth0_user_id": "auth0|SYNTHETIC-student-000000000000000002",
+        "first_name": "Student0002",
+        "middle_name": null,
+        "last_name": "Synthetic",
+        "email": "student0002@example.com",
+        "status": "active",
+        "is_requesting_to_leave": false
+      },
+      {
+        "_id": {
+          "$oid": "0004237e8ed98dc3d264f495"
+        },
+        "subscriber_id": null,
+        "auth0_user_id": "auth0|SYNTHETIC-student-000000000000000003",
+        "first_name": "Student0003",
+        "middle_name": null,
+        "last_name": "Synthetic",
+        "email": "student0003@example.com",
+        "status": "active",
+        "is_requesting_to_leave": false
+      }
+    ],
+    "class_photo": null,
+    "deleted": false,
+    "deleted_at": null,
+    "dedupe_key": "0003077ace3e18ed1c535c3b|synthetic class 1|sec-01",
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "updated_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0005b93beb1af6d145bbe0cb"
+    },
+    "title": "Synthetic Class 2",
+    "description": "",
+    "section": "SEC-02",
+    "semester": "Fall",
+    "class_code": "SYN002",
+    "schedules": [],
+    "status": "VISIBLE",
+    "teacher": {
+      "_id": {
+        "$oid": "00030f1277e173494f073dc5"
+      },
+      "subscriber_id": null,
+      "auth0_user_id": "auth0|SYNTHETIC-teacher-000000000000000002",
+      "first_name": "Teacher0002",
+      "last_name": "Synthetic",
+      "email": "teacher0002@example.com"
+    },
+    "students": [
+      {
+        "_id": {
+          "$oid": "0004f922dfa1a42d83964cbb"
+        },
+        "subscriber_id": null,
+        "auth0_user_id": "auth0|SYNTHETIC-student-000000000000000004",
+        "first_name": "Student0004",
+        "middle_name": null,
+        "last_name": "Synthetic",
+        "email": "student0004@example.com",
+        "status": "active",
+        "is_requesting_to_leave": false
+      },
+      {
+        "_id": {
+          "$oid": "00041ff20d03ea96752f81c0"
+        },
+        "subscriber_id": null,
+        "auth0_user_id": "auth0|SYNTHETIC-student-000000000000000005",
+        "first_name": "Student0005",
+        "middle_name": null,
+        "last_name": "Synthetic",
+        "email": "student0005@example.com",
+        "status": "active",
+        "is_requesting_to_leave": false
+      },
+      {
+        "_id": {
+          "$oid": "0004333382e89df772b3d251"
+        },
+        "subscriber_id": null,
+        "auth0_user_id": "auth0|SYNTHETIC-student-000000000000000006",
+        "first_name": "Student0006",
+        "middle_name": null,
+        "last_name": "Synthetic",
+        "email": "student0006@example.com",
+        "status": "active",
+        "is_requesting_to_leave": false
+      }
+    ],
+    "class_photo": null,
+    "deleted": false,
+    "deleted_at": null,
+    "dedupe_key": "00030f1277e173494f073dc5|synthetic class 2|sec-02",
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "updated_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "000522108f55fb3db78ca705"
+    },
+    "title": "Synthetic Class 3",
+    "description": "",
+    "section": "SEC-03",
+    "semester": "Fall",
+    "class_code": "SYN003",
+    "schedules": [],
+    "status": "VISIBLE",
+    "teacher": {
+      "_id": {
+        "$oid": "00033d8b107fbef8a5ae1e30"
+      },
+      "subscriber_id": null,
+      "auth0_user_id": "auth0|SYNTHETIC-teacher-000000000000000003",
+      "first_name": "Teacher0003",
+      "last_name": "Synthetic",
+      "email": "teacher0003@example.com"
+    },
+    "students": [
+      {
+        "_id": {
+          "$oid": "00047de802d8217125decff6"
+        },
+        "subscriber_id": null,
+        "auth0_user_id": "auth0|SYNTHETIC-student-000000000000000007",
+        "first_name": "Student0007",
+        "middle_name": null,
+        "last_name": "Synthetic",
+        "email": "student0007@example.com",
+        "status": "active",
+        "is_requesting_to_leave": false
+      },
+      {
+        "_id": {
+          "$oid": "0004ca9b0db38b98186746cf"
+        },
+        "subscriber_id": null,
+        "auth0_user_id": "auth0|SYNTHETIC-student-000000000000000008",
+        "first_name": "Student0008",
+        "middle_name": null,
+        "last_name": "Synthetic",
+        "email": "student0008@example.com",
+        "status": "active",
+        "is_requesting_to_leave": false
+      },
+      {
+        "_id": {
+          "$oid": "000485175f74e3e2702ee69d"
+        },
+        "subscriber_id": null,
+        "auth0_user_id": "auth0|SYNTHETIC-student-000000000000000009",
+        "first_name": "Student0009",
+        "middle_name": null,
+        "last_name": "Synthetic",
+        "email": "student0009@example.com",
+        "status": "active",
+        "is_requesting_to_leave": false
+      }
+    ],
+    "class_photo": null,
+    "deleted": false,
+    "deleted_at": null,
+    "dedupe_key": "00033d8b107fbef8a5ae1e30|synthetic class 3|sec-03",
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "updated_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  {
+    "_id": {
+      "$oid": "0005267e82c37f00063f6dab"
+    },
+    "title": "Synthetic Class 4",
+    "description": "",
+    "section": "SEC-04",
+    "semester": "Fall",
+    "class_code": "SYN004",
+    "schedules": [],
+    "status": "VISIBLE",
+    "teacher": {
+      "_id": {
+        "$oid": "0003174a2aa2aa82c787431b"
+      },
+      "subscriber_id": null,
+      "auth0_user_id": "auth0|SYNTHETIC-teacher-000000000000000004",
+      "first_name": "Teacher0004",
+      "last_name": "Synthetic",
+      "email": "teacher0004@example.com"
+    },
+    "students": [
+      {
+        "_id": {
+          "$oid": "00048a5a5de2e6d47c2d0cba"
+        },
+        "subscriber_id": null,
+        "auth0_user_id": "auth0|SYNTHETIC-student-000000000000000010",
+        "first_name": "Student0010",
+        "middle_name": null,
+        "last_name": "Synthetic",
+        "email": "student0010@example.com",
+        "status": "active",
+        "is_requesting_to_leave": false
+      },
+      {
+        "_id": {
+          "$oid": "0004838521b369f54ba2e105"
+        },
+        "subscriber_id": null,
+        "auth0_user_id": "auth0|SYNTHETIC-student-000000000000000011",
+        "first_name": "Student0011",
+        "middle_name": null,
+        "last_name": "Synthetic",
+        "email": "student0011@example.com",
+        "status": "active",
+        "is_requesting_to_leave": false
+      },
+      {
+        "_id": {
+          "$oid": "00045184ff0c1e14aa575d8d"
+        },
+        "subscriber_id": null,
+        "auth0_user_id": "auth0|SYNTHETIC-student-000000000000000012",
+        "first_name": "Student0012",
+        "middle_name": null,
+        "last_name": "Synthetic",
+        "email": "student0012@example.com",
+        "status": "active",
+        "is_requesting_to_leave": false
+      }
+    ],
+    "class_photo": null,
+    "deleted": false,
+    "deleted_at": null,
+    "dedupe_key": "0003174a2aa2aa82c787431b|synthetic class 4|sec-04",
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "updated_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    }
+  }
+]

@@ -1,0 +1,84 @@
+[
+  {
+    "_id": {
+      "$oid": "000bd15ca7550f30aa6a6441"
+    },
+    "semester": "spring",
+    "type": "custom-test",
+    "category": "current",
+    "format": "standard",
+    "title": "Synthetic Global Assignment 0001",
+    "description": "Synthetic global bank assignment 1.",
+    "questions": [
+      "000a87cf595cc8d28c2ae8d9"
+    ],
+    "assigned_class": [],
+    "date_open": null,
+    "date_close": null,
+    "settings": {
+      "time_allowed": "01:00:00",
+      "allowed_attempts": 1,
+      "shuffle_questions": false,
+      "shuffle_choices": false,
+      "allow_calculator": false,
+      "show_score_after_submit": false,
+      "show_correct_answers_after_submit": false,
+      "allow_feedback_after_submit": false
+    },
+    "deleted": false,
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "created_by": null,
+    "updated_at": null,
+    "updated_by": null,
+    "deleted_at": null,
+    "deleted_by": null,
+    "passing_grade": 70,
+    "copy_of": null,
+    "version": 1,
+    "instructions": null,
+    "rubric": null
+  },
+  {
+    "_id": {
+      "$oid": "000be5833c99f6f41146d7ba"
+    },
+    "semester": "spring",
+    "type": "custom-test",
+    "category": "current",
+    "format": "standard",
+    "title": "Synthetic Global Assignment 0002",
+    "description": "Synthetic global bank assignment 2.",
+    "questions": [
+      "000acd4bdfce261d764f9967"
+    ],
+    "assigned_class": [],
+    "date_open": null,
+    "date_close": null,
+    "settings": {
+      "time_allowed": "01:00:00",
+      "allowed_attempts": 1,
+      "shuffle_questions": false,
+      "shuffle_choices": false,
+      "allow_calculator": false,
+      "show_score_after_submit": false,
+      "show_correct_answers_after_submit": false,
+      "allow_feedback_after_submit": false
+    },
+    "deleted": false,
+    "created_at": {
+      "$date": "2026-01-01T00:00:00.000Z"
+    },
+    "created_by": null,
+    "updated_at": null,
+    "updated_by": null,
+    "deleted_at": null,
+    "deleted_by": null,
+    "passing_grade": 70,
+    "copy_of": null,
+    "version": 1,
+    "instructions": null,
+    "rubric": null
+  }
+]

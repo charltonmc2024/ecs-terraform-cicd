@@ -1,0 +1,46 @@
+{
+  "teacher_student_db": {
+    "user_collection": {
+      "file": "teacher_student_db.user_collection.json",
+      "count": 16
+    },
+    "class_collection": {
+      "file": "teacher_student_db.class_collection.json",
+      "count": 4
+    },
+    "assignments_collection": {
+      "file": "teacher_student_db.assignments_collection.json",
+      "count": 8
+    },
+    "submission_collection": {
+      "file": "teacher_student_db.submission_collection.json",
+      "count": 24
+    },
+    "teacher_questionbank": {
+      "file": "teacher_student_db.teacher_questionbank.json",
+      "count": 8
+    },
+    "school_collection": {
+      "file": "teacher_student_db.school_collection.json",
+      "count": 4
+    }
+  },
+  "admin_staff_mongodb": {
+    "district_collection": {
+      "file": "admin_staff_mongodb.district_collection.json",
+      "count": 2
+    },
+    "school_collection": {
+      "file": "admin_staff_mongodb.school_collection.json",
+      "count": 4
+    },
+    "global_questionbank": {
+      "file": "admin_staff_mongodb.global_questionbank.json",
+      "count": 4
+    },
+    "global_assignments": {
+      "file": "admin_staff_mongodb.global_assignments.json",
+      "count": 2
+    }
+  }
+}
