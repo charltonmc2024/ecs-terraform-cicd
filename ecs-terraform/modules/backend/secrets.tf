@@ -22,7 +22,7 @@
 # resolves task-definition `secrets` at task start, before the application runs.
 
 data "aws_iam_policy_document" "execution_secret" {
-  count = length(local.mongo_secret_arns) > 0 ? 1 : 0
+  count = nonsensitive(length(local.mongo_secret_arns) > 0) ? 1 : 0
 
   statement {
     sid    = "ReadMongoSecrets"
@@ -37,7 +37,7 @@ data "aws_iam_policy_document" "execution_secret" {
 }
 
 resource "aws_iam_policy" "execution_secret" {
-  count = length(local.mongo_secret_arns) > 0 ? 1 : 0
+  count = nonsensitive(length(local.mongo_secret_arns) > 0) ? 1 : 0
 
   name        = "${local.name_prefix}-ecs-execution-secret"
   description = "Scoped read access to exactly the injected application secret ARN for the ${local.name_prefix} ECS execution role."
@@ -47,7 +47,7 @@ resource "aws_iam_policy" "execution_secret" {
 }
 
 resource "aws_iam_role_policy_attachment" "execution_secret" {
-  count = length(local.mongo_secret_arns) > 0 ? 1 : 0
+  count = nonsensitive(length(local.mongo_secret_arns) > 0) ? 1 : 0
 
   role       = aws_iam_role.execution.name
   policy_arn = aws_iam_policy.execution_secret[0].arn
@@ -66,7 +66,7 @@ locals {
 }
 
 data "aws_iam_policy_document" "api_execution_secret" {
-  count = length(local.api_secret_arns) > 0 ? 1 : 0
+  count = nonsensitive(length(local.api_secret_arns) > 0) ? 1 : 0
 
   statement {
     sid     = "ReadFastAPISecrets"
@@ -78,7 +78,7 @@ data "aws_iam_policy_document" "api_execution_secret" {
 }
 
 resource "aws_iam_policy" "api_execution_secret" {
-  count = length(local.api_secret_arns) > 0 ? 1 : 0
+  count = nonsensitive(length(local.api_secret_arns) > 0) ? 1 : 0
 
   name        = "${local.name_prefix}-api-execution-secret"
   description = "Scoped Secrets Manager access for FastAPI."
@@ -90,7 +90,7 @@ resource "aws_iam_policy" "api_execution_secret" {
 }
 
 resource "aws_iam_role_policy_attachment" "api_execution_secret" {
-  count = length(local.api_secret_arns) > 0 ? 1 : 0
+  count = nonsensitive(length(local.api_secret_arns) > 0) ? 1 : 0
 
   role       = aws_iam_role.api_execution.name
   policy_arn = aws_iam_policy.api_execution_secret[0].arn
