@@ -1,0 +1,997 @@
+# Implementation Plan: ECS Terraform Pre-Deployment Validation
+
+## Overview
+
+These are validation tasks: read-only evidence gathering and documentation for the DEV root (`ecs-terraform/envs/dev/`, `us-east-1`). No task changes code, Terraform, tfvars, Jenkins, state or AWS resources. Fixes are recorded only as proposals with status `AWAITING_APPROVAL`. Checks follow the Check Catalog in `design.md`; requirement references use `requirements.md` numbering.
+
+## Execution rules
+
+- NO task is run until Task 1 is approved by the user. Creating this list executes nothing.
+- Status vocabulary: PASS, FAIL, BLOCKED, NOT TESTED. Every check holds exactly one status; the initial status is NOT TESTED.
+- No PASS without evidence: PASS needs at least one redacted Evidence item (command or file ref, observed excerpt, expected result, UTC timestamp). FAIL needs observed-vs-expected and a linked Finding. BLOCKED needs a reason and the named missing prerequisite. NOT TESTED keeps timestamp, command and evidence empty.
+- Forbidden: `terraform apply`, `destroy`, `import`, `init` (any form), `refresh`, `console`, `output`, `state rm|mv|pull|show|push`, `taint`, `plan -out`, bare `terraform show`, `terraform fmt` without `-check`, and any AWS resource-changing command.
+- AWS commands only from the design's enumerated allowlist (default deny). Every AWS argv adds `--profile <approved_profile> --region us-east-1` (profile name only, never credentials). No secret retrieval (`get-secret-value`, `ssm get-parameter*`, `kms decrypt`, `ecr get-authorization-token`, `get-login-password`, `sts get-session-token`, `configure`), no `--debug`, `--endpoint-url`, `--cli-input-*`. No image pull, no login.
+- Commands are argv arrays: no shell pipes, `&&`, `;` or redirects, with the single exception of the approved plan pipeline `terraform show -json tfplan-dev | jq <read-only filter>` (see the plan-parsing bullet). File reads exclude `~/.aws/*`, `.env*`, `*.pem`, `*.key`, `id_rsa*` and the content of any `*.tfstate`.
+- Plan data ONLY from the in-memory query `PLANQ` = the approved pipeline `terraform show -json tfplan-dev | jq <read-only filter>` (cwd `/home/charltoncagigas/ecs-terraform-cicd/ecs-terraform/envs/dev`). The binary `tfplan-dev` is the source of truth. `tfplan-dev.json` and `tfplan-dev-formatted.json` are stale renderings: never used as evidence. Plan output is never written to disk; only counts, addresses and attribute names enter Evidence. Plan is referenced by filename only.
+- User decision (2026-11-02): `ecs-terraform/envs/dev/tfplan-dev-lockfile` is the AUTHORITATIVE saved plan for all remaining pre-deployment checks (tasks not yet executed use it wherever the text says `tfplan-dev`; PLANQ = `terraform show -json tfplan-dev-lockfile | jq <read-only filter>`, cwd Dev_Root). The original `tfplan-dev` is preserved unchanged and must not be modified or deleted. Results already recorded for tasks 3.x used tfplan-dev; the two plans were verified to have identical (address, action) sets.
+- Local state files (repo-root `terraform.tfstate`, `ecs-terraform/modules/terraform.tfstate`, `ecs-terraform/bootstrap/terraform.tfstate` and `.backup`) are inspected structurally only (version, terraform_version, serial, resource/output counts, resource types). Never modify, move, rename, truncate or delete them; deletion is only a proposal awaiting approval.
+- Unset or missing backend metadata (`encrypt`, `use_lockfile` in `.terraform/terraform.tfstate`) means "not stated", never proof of disabled. State encryption and locking are UNVERIFIED until confirmed by CHK-TFP-015.
+- Redact secrets, tokens, `mongodb://` and `mongodb+srv://` URIs; account IDs become `REDACTED_ACCOUNT` (or `****<last4>` only where required). Reference secrets by name or ARN only.
+- Every Finding has Blocks_Field, `severity_bootstrap`, `severity_application` (application never lower than bootstrap), evidence, affected resources, and a proposed fix with `approval_status = AWAITING_APPROVAL`.
+- Plan-derived tasks list 3.4 and 3.5 as prerequisites meaning 'the plan was readable': they run when 3.4/3.5 are PASS or FAIL and are BLOCKED only when 3.4/3.5 are BLOCKED (plan unreadable). A count or action FAIL does not block them, so one plan finding does not cascade to every check. This is a documented, user-reviewable refinement of design guard G4 for plan-derived checks only; all other prerequisite relations follow G4 (a non-PASS prerequisite BLOCKS the dependent).
+- Prerequisites marked "(order)" mean the dependent runs after that task finishes with ANY status (PASS, FAIL, BLOCKED or NOT TESTED outcome recorded) and are never a reason to BLOCK; they exist only for sequencing (for example expected-FAIL checks 3.6, 3.7, 3.8, 9.2). Unmarked prerequisites follow G4 (a non-PASS prerequisite BLOCKS the dependent), except the documented plan-readable refinement for 3.4/3.5. Prerequisites marked "(plan-readable)" follow that refinement.
+- User decision: the documented exceptions to G4 ("(plan-readable)" and "(order)") are approved for independent evidence collection. Hard dependencies stay wherever a failed prerequisite genuinely prevents a meaningful check.
+- Approved plan-parsing method: a single read-only pipeline `terraform show -json tfplan-dev | jq <read-only filter>` run from the Dev_Root, with no redirects or file writes. Filters extract only counts, addresses, action names and attribute names/booleans needed as Evidence; never print secret values, environment variable values, full resource attribute bodies or the complete plan. `jq` is invoked without file-reading options (no `--rawfile`, `--slurpfile`, `-f` from untrusted files) and with no output to files. This is the only approved pipe; all other commands stay pipe-free.
+- Common paths: repo root `/home/charltoncagigas/ecs-terraform-cicd`; Dev_Root `/home/charltoncagigas/ecs-terraform-cicd/ecs-terraform/envs/dev`.
+- Group A must be fully completable before any `terraform apply`. Group B and post-deployment parts of Group C are never executed in this run.
+- Bootstrap Terraform sources (`ecs-terraform/bootstrap/*.tf`) may be READ for backend configuration verification (CHK-TFP-015, CHK-TFP-014); they are never modified, never cited as the implementation source for Dev_Root findings, and are otherwise reference-only (Requirement 1.5).
+- User clarification: the remote state object at `ecs-dev/terraform.tfstate` (12,596 bytes, LastModified 2026-10-31T15:19:48Z at the 2.3 baseline) is treated as EXPECTED until Task 4.1 determines its resource inventory; previously Terraform created an ECR repository and lifecycle policy. Size alone, or being larger than the 181-byte empty local state files, is never evidence that remote state is stale.
+- Baseline preserved for 14.1: the 49-file SHA-256 baseline (48 .tf plus terraform.tfvars) captured in task 2.3 and the state-object fingerprint (VersionId, ETag, LastModified, ContentLength) must be compared unchanged at 14.1; no task may modify those files.
+
+## Tasks
+
+- [x] 1. Approval checkpoint — no validation task runs until the user approves
+  - [x] 1.1 Ask the user for approvals and inputs and record the answers (no commands run)
+    - Ask and record: (1) explicit approval to start the validation run; (2) AWS read-only profile NAME to use (never credentials); (3) whether read-only access is granted to the state bucket (`s3api get-bucket-encryption`, `get-bucket-versioning`, `head-object` on `ecs-dev/terraform.tfstate`) and to ECR and Secrets Manager metadata (`describe-repositories`, `describe-images`, `describe-secret`); (4) Atlas IP access list entries as text, or "not provided"; (5) Jenkins build log excerpts, or "not provided"; (6) approval of the in-memory plan-parsing method: if the execution environment cannot hold `terraform show -json tfplan-dev` output without a shell pipe, ask for explicit approval of a single read-only pipeline into a non-writing parser (no file writes); (7) confirmation that Dev_Root is initialized (`terraform init` is never run; if not initialized, TFP-002 and TFP-008 are BLOCKED).
+    - Unanswered items default to "not granted / not provided": dependent checks are BLOCKED naming the missing input.
+    - Task 1 execution record (user answers, final):
+      - Approval: start Task 2 only; Tasks 3 to 19 require explicit approval one task at a time.
+      - Inputs: profile `charltonecs`, region `us-east-1`, Dev_Root `ecs-terraform/envs/dev`, plan `tfplan-dev`.
+      - Approved read-only AWS operations (all with `--profile charltonecs --region us-east-1`, no secret values): `sts get-caller-identity` (2.2); `s3api head-object` on key `ecs-dev/terraform.tfstate` only (2.3, 14.1); `s3api get-bucket-encryption` and `get-bucket-versioning` on the state bucket, and `dynamodb describe-table` only if bootstrap defines a lock table (4.5); `secretsmanager describe-secret` metadata only (7.9, 10.1); `ecr describe-repositories` and `describe-images` with no pull or login (9.5, 9.7); `ec2 describe-availability-zones` only if needed (6.4); `pricing get-products`, `describe-services`, `get-attribute-values` with `--region us-east-1` (13.1).
+      - Terraform: `terraform state list` approved against the DEV S3 backend for resource addresses only (no values); approved plan pipeline `terraform show -json tfplan-dev | jq <read-only filter>`; init user-stated complete (init never run).
+      - Not provided: Atlas allowlist and Jenkinsfile/build logs, so dependent checks stay BLOCKED.
+      - Prohibited: apply, destroy, import, init, refresh or state-modifying commands; never print full state or plan; mask account IDs.
+    - _Requirements: 2.1, 2.3, 2.5, 2.12, 2.14, 5.11, 5.12, 10.5, 12.5_
+
+- [x] 2. Group A (a) — Phase 0 inventory, safety bracket start, AWS read access
+  - [x] 2.1 CHK-INV-001 Inspection inventory
+    - Prerequisites: 1.1
+    - Approved read-only commands: file read and directory listing of every `.tf`/`.tfvars` in Dev_Root, every `.tf` in `ecs-terraform/modules/*`, `.kiro/steering/*`, and `requirements.md`, `design.md`, `tasks.md` of specs 01 to 08 (excluding secrets paths).
+    - Expected evidence: inventory listing each file read and each unreadable or missing file, with reason and directories searched.
+    - PASS: inventory exists and lists all files read, before any Finding or Recommendation is recorded.
+    - FAIL: not used for unreadable files; each unreadable or missing expected file is recorded as a Finding (Informational/Informational unless it blocks a check) naming path, reason and directories searched, and the check continues.
+    - BLOCKED: filesystem unreadable at repo root (name the path).
+    - _Requirements: 1.1, 1.2, 1.4, 1.5, 1.6_
+  - [x] 2.2 CHK-AWS-001 AWS read-access prerequisite (`sts get-caller-identity`)
+    - Prerequisites: 1.1 (profile approved)
+    - Approved read-only commands: `aws sts get-caller-identity --profile <approved_profile> --region us-east-1`
+    - Expected evidence: success flag and masked account (`****<last4>`); no keys.
+    - PASS: call succeeds. Every AWS-dependent check may then run.
+    - FAIL: not used.
+    - BLOCKED: credentials missing/expired or profile not approved: every AWS-dependent check is BLOCKED naming "AWS read access" (ECR checks use the wording "ECR read access unavailable"); takes precedence over unreadable-state handling.
+    - _Requirements: 2.3, 2.12, 9.7 (check ID CHK-AWS-001: R2, R9)_
+  - [x] 2.3 CHK-SAF-001 (start) Safety bracket fingerprint
+    - Prerequisites: 2.1; 2.2 for the state-object part
+    - Approved read-only commands: file read to compute SHA-256 of `ecs-terraform/envs/dev/*.tf`, `ecs-terraform/modules/**/*.tf`, `terraform.tfvars`; `aws s3api head-object --bucket <state_bucket_from_backend.config> --key ecs-dev/terraform.tfstate --profile <approved_profile> --region us-east-1` (metadata only).
+    - Expected evidence: checksums and state-object VersionId, ETag, LastModified (bucket name redacted), taken at run start.
+    - PASS (start): fingerprint captured; final PASS is decided in 14.1.
+    - FAIL: not decided here.
+    - BLOCKED: head-object access unavailable: the state fingerprint part is BLOCKED naming "head-object access"; checksum part still recorded.
+    - _Requirements: 2.4_
+
+- [x] 3. Group A (b) — Terraform and plan integrity
+  - [x] 3.1 CHK-TFP-003 Tool and provider versions
+    - Prerequisites: 2.1
+    - Approved read-only commands: `terraform version` (cwd Dev_Root); file read of `.terraform.lock.hcl`.
+    - Expected evidence: installed Terraform and AWS provider versions vs `~> 1.16.0` and `>= 6.67.0, < 7.0.0`.
+    - PASS: both constraints satisfied.
+    - FAIL: any unsatisfied constraint; record installed vs required; Finding (Risk/Risk; Blocker/Blocker if it prevents reading the plan).
+    - BLOCKED: `terraform` binary or lock file unreadable.
+    - _Requirements: 5.3_
+  - [x] 3.2 CHK-TFP-001 Format check
+    - Prerequisites: 2.1
+    - Approved read-only commands: `terraform fmt -check -recursive` (cwd `/home/charltoncagigas/ecs-terraform-cicd/ecs-terraform`)
+    - Expected evidence: exit code and listed files.
+    - PASS: exit 0.
+    - FAIL: non-zero; list each file; Finding Risk/Risk; no file modified (never run `fmt` without `-check`).
+    - BLOCKED: binary unavailable.
+    - _Requirements: 5.1, 5.2_
+  - [x] 3.3 CHK-TFP-002 Validate
+    - Prerequisites: 1.1 (init confirmed)
+    - Approved read-only commands: `terraform validate` (cwd Dev_Root)
+    - Expected evidence: exit code and diagnostics (addresses only).
+    - PASS: exit 0.
+    - FAIL: non-zero; name each file/resource; Finding Blocker/Blocker if apply would fail, else Risk/Risk.
+    - BLOCKED: Dev_Root not initialized: name "missing terraform init"; do not run init; request user approval.
+    - _Requirements: 5.1, 5.2, 2.14_
+  - [x] 3.4 CHK-TFP-004 Plan summary counts
+    - Prerequisites: 1.1 (plan method approved), 3.1
+    - Approved read-only commands: `terraform show tfplan-dev` (cwd Dev_Root; plan-file argument required) and in-memory `PLANQ`.
+    - Expected evidence: add/change/destroy counts.
+    - PASS: exactly 51 add, 0 change, 0 destroy.
+    - FAIL: any difference; state actual counts; Finding Blocker/Blocker, Blocks_Field "Bootstrap_Readiness; Requirement 5.4".
+    - BLOCKED: plan unreadable (for example version mismatch): record error; plan-derived checks BLOCKED naming CHK-TFP-004.
+    - _Requirements: 5.4_
+  - [x] 3.5 CHK-TFP-005 No update, delete or replace actions
+    - Prerequisites: 3.4
+    - Approved read-only commands: in-memory `PLANQ` = the approved pipeline `terraform show -json tfplan-dev | jq <read-only filter>` (cwd Dev_Root; no redirects or file writes; emits only addresses and action names).
+    - Expected evidence: set of planned actions per address (counts and addresses only).
+    - PASS: all 51 actions are create.
+    - FAIL: list each address and action; Finding Blocker/Blocker (Requirement 5.5).
+    - BLOCKED: plan unreadable (3.4 BLOCKED).
+    - _Requirements: 5.5_
+  - [x] 3.6 CHK-TFP-013 Stale JSON renderings
+    - Prerequisites: 2.1
+    - Approved read-only commands: file `stat` mtimes of `tfplan-dev`, `tfplan-dev.json`, `tfplan-dev-formatted.json` (Dev_Root).
+    - Expected evidence: three mtimes and comparison.
+    - PASS: each rendering is at least as new as the binary plan.
+    - FAIL: any rendering older (expected from design measurement 11:21 vs 10:03/10:04): Finding Risk/Risk "rendering stale", Requirement 5.14; no evidence taken from renderings; all plan data from `PLANQ`.
+    - BLOCKED: plan files missing (name the missing file).
+    - _Requirements: 5.14_
+  - [x] 3.7 CHK-TFP-006 Plan currency vs sources
+    - Prerequisites: 3.4, 3.6 (order)
+    - Approved read-only commands: file `stat` mtimes of Dev_Root `*.tf`, `terraform.tfvars`, `ecs-terraform/modules/**/*.tf`; `git status`; `git diff` (cwd repo root); `PLANQ`.
+    - Expected evidence: files newer than plan or uncommitted, each checked against plan content.
+    - PASS: no newer/uncommitted file, or each verified to match the plan (Informational).
+    - FAIL: content differs from plan, or newer and match cannot be verified: Finding Risk/Risk (Requirements 5.6, 13.5). Prompt-to-verify is not itself a failure.
+    - BLOCKED: plan unreadable or git unavailable.
+    - _Requirements: 5.6, 5.11, 5.12_
+  - [x] 3.8 CHK-TFP-007 Plan resources by module and type
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; file read of module sources.
+    - Expected evidence: counts per module/type totalling 51; source definition per group.
+    - PASS: every group has a source definition and every source resource is in the plan or has an explained conditional.
+    - FAIL: record Finding per unmatched group (Risk/Risk).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 5.7_
+
+- [x] 4. Group A (c) — State, backend and ignore rules
+  - [x] 4.1 CHK-TFP-008 Remote state matches approved ECR baseline
+    - Prerequisites: 2.2, 1.1 (init confirmed)
+    - Approved read-only commands: `terraform state list` (cwd Dev_Root)
+    - Expected evidence: resource count only (addresses if any).
+    - PASS: the listing at key `ecs-dev/terraform.tfstate` equals the approved two-address baseline exactly (`module.backend.aws_ecr_repository.app`, `module.backend.aws_ecr_lifecycle_policy.app`). Original wording was 'zero resources'; adjusted with user approval on 2026-11-02 (see Execution record).
+    - FAIL: any unexpected address (list each; Finding Blocker/Blocker, Requirement 5.8) or any missing baseline address (Finding Risk/Risk). State unreadable with valid credentials: FAIL with access error (Requirement 5.9); run no state-modifying command.
+    - BLOCKED: Dev_Root not initialized (name it) or no AWS read access (2.2).
+    - Execution record:
+      - Timestamp: 2026-11-02T20:43:51Z
+      - Command: `AWS_PROFILE=charltonecs AWS_REGION=us-east-1 terraform state list -no-color` (cwd Dev_Root); exit code 0
+      - Addresses: `module.backend.aws_ecr_repository.app`, `module.backend.aws_ecr_lifecycle_policy.app`
+      - Original literal CHK-TFP-008 test (zero resources): NOT MET (2 resources found); result preserved.
+      - Adjusted user-approved baseline (exactly the two ECR resources): MATCH
+      - Recorded status: PASS against the adjusted baseline
+      - Finding: Informational/Informational 'remote state holds the 2 expected pre-existing ECR resources'
+      - No state or AWS changes were made.
+    - _Requirements: 5.8, 5.9, 2.14_
+  - [x] 4.2 CHK-TFP-009 Plan and state files ignored and untracked
+    - Prerequisites: 2.1
+    - Approved read-only commands: `git check-ignore tfplan-dev tfplan-dev.json tfplan-dev-formatted.json` (cwd Dev_Root); `git ls-files` (cwd repo root).
+    - Expected evidence: ignore matches; tracked-file list has no plan or `*.tfstate*`.
+    - PASS: all ignored and none tracked.
+    - FAIL: Finding per tracked or unignored file (Risk/Risk; Blocker/Blocker if a state file is tracked, steering state rule).
+    - BLOCKED: git unavailable.
+    - _Requirements: 2.7, 12.8_
+  - [x] 4.3 CHK-TFP-011 Backend configuration supplied externally
+    - Prerequisites: 2.1
+    - Approved read-only commands: file read of `backend.tf` and key names of `backend.config`; `git check-ignore backend.config` (cwd `/home/charltoncagigas/ecs-terraform-cicd/ecs-terraform`).
+    - Expected evidence: empty `backend "s3" {}`; bucket/key/region come from config file; no credentials committed.
+    - PASS: all three true.
+    - FAIL: Finding per issue (Risk/Risk; Blocker/Blocker if credentials are committed).
+    - BLOCKED: file unreadable.
+    - _Requirements: 12.7_
+  - [x] 4.4 CHK-TFP-012 Local state files inspected structurally
+    - Prerequisites: 2.1
+    - Approved read-only commands: `git ls-files`, `git check-ignore`, file `stat`, and structural parse only (version, terraform_version, serial, resource/output counts, resource types) of repo-root `terraform.tfstate`, `ecs-terraform/modules/terraform.tfstate`, `ecs-terraform/bootstrap/terraform.tfstate` and `.backup`. Read-only: never modify, move, rename, truncate or delete.
+    - Expected evidence: per file metadata; statement that none is the remote state at `ecs-dev/terraform.tfstate`; no values printed.
+    - PASS: each file recorded as a Finding and none is used as input.
+    - FAIL: not used for housekeeping; Findings: empty shells Informational/Informational (deletion only a proposal, AWAITING_APPROVAL; hazard noted); bootstrap state Informational/Informational; non-empty local state Risk/Risk; Blocker/Blocker only if configured for Dev_Root.
+    - BLOCKED: file unreadable (record Finding with path and reason).
+    - _Requirements: 5.13, 2.13_
+  - [x] 4.5 CHK-TFP-015 Confirm state encryption and locking from bootstrap and bucket metadata
+    - Prerequisites: 2.2, 4.3
+    - Approved read-only commands: file read of `ecs-terraform/bootstrap/*.tf` and `backend.config` key names; `aws s3api get-bucket-encryption --bucket <state_bucket> ...`; `aws s3api get-bucket-versioning --bucket <state_bucket> ...`; `aws dynamodb describe-table --table-name <lock_table> ...` only if bootstrap sources define a lock table (bucket name redacted).
+    - Expected evidence: encryption and locking each resolved to CONFIRMED_ENABLED, UNVERIFIED or CONFIRMED_DISABLED.
+    - PASS: both resolved from explicit evidence (CONFIRMED_ENABLED recorded Informational/Informational).
+    - FAIL: CONFIRMED_DISABLED with explicit evidence: Finding Risk/Risk (Blocker/Blocker if a steering state rule is violated).
+    - BLOCKED: read access to bucket metadata not granted: record UNVERIFIED with reason; Finding Risk/Risk (Requirement 5.15).
+    - _Requirements: 5.15_
+  - [x] 4.6 CHK-TFP-014 Initialized backend metadata (structural)
+    - Prerequisites: 1.1; 4.5 (real prerequisite for the encryption/locking sub-result only: if 4.5 is BLOCKED or UNVERIFIED, 4.6 still runs its credential sub-check and records the encryption/locking sub-result as UNVERIFIED)
+    - Approved read-only commands: structural read of `.terraform/terraform.tfstate` in Dev_Root: key names and set/unset flags only.
+    - Expected evidence: `type = s3`; key equals `ecs-dev/terraform.tfstate`; absence of `access_key`, `secret_key`, `token`, `sse_customer_key`; `encrypt`/`use_lockfile` recorded as "not stated" if unset.
+    - PASS: credential sub-check passes with evidence of each key's absence; encryption/locking sub-result carried over from 4.5.
+    - FAIL: wrong key, or any credential key set: Finding Blocker/Blocker (steering security rule). Unset `encrypt`/`use_lockfile` is NEVER a FAIL or proof of disabled.
+    - BLOCKED: Dev_Root not initialized (no metadata): name it; sub-result UNVERIFIED.
+    - _Requirements: 5.15_
+  - [x] 4.7 CHK-CIC-006 Plan patterns ignored, no plan files tracked
+    - Prerequisites: 4.2
+    - Approved read-only commands: file read of root `.gitignore`; `git ls-files` (cwd repo root).
+    - Expected evidence: pattern `tfplan-*` (and plan JSON patterns) present; zero tracked plan files.
+    - PASS: patterns present and zero tracked.
+    - FAIL: Finding per tracked match (Risk/Risk).
+    - BLOCKED: `.gitignore` unreadable.
+    - _Requirements: 12.8_
+
+- [x] 5. Group A (d) — Hardcoding scan
+  - [x] 5.1 CHK-TFP-010 No hardcoded identifiers
+    - Prerequisites: 2.1
+    - Approved read-only commands: file read / content search over `.tf` sources in Dev_Root and `ecs-terraform/modules/`; matched values never printed.
+    - Expected evidence: zero literal 12-digit account IDs, `vpc-`, `subnet-`, `sg-` (excluding tfvars ARNs and apply-time values); else file:line.
+    - PASS: zero occurrences.
+    - FAIL: Finding per occurrence (Risk/Risk; Blocker/Blocker only if the literal would make apply fail).
+    - BLOCKED: sources unreadable.
+    - _Requirements: 5.10_
+
+- [x] 6. Group A (e) — Networking (plan-derived)
+  - [x] 6.1 CHK-NET-001 VPC, subnets, IGW, route tables
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; file read of `terraform.tfvars`.
+    - Expected evidence: counts and CIDR equality with tfvars.
+    - PASS: 1 VPC, 2 public, 2 private subnets, 1 IGW, 2 route tables with associations per subnet, CIDRs equal tfvars.
+    - FAIL: list mismatches; Finding Blocker/Blocker if apply or scope broken, else Risk/Risk.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 6.1_
+  - [x] 6.2 CHK-NET-002 NAT Gateway
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: NAT count/subnet, EIP count, private `0.0.0.0/0` route target (addresses only).
+    - PASS: with `enable_nat_gateway = true`: 1 NAT in a public subnet, 1 EIP, private default route to NAT.
+    - FAIL: Finding Blocker/Blocker (Atlas egress depends on NAT).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 6.2_
+  - [x] 6.3 CHK-NET-003 S3 gateway endpoint
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: one S3 gateway endpoint with both route table associations.
+    - PASS: exactly one, associated with public and private route tables.
+    - FAIL: Finding Risk/Risk.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 6.3_
+  - [x] 6.4 CHK-NET-004 Private subnets in distinct AZs
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; `aws ec2 describe-availability-zones` only if AZ names are unknown until apply.
+    - Expected evidence: AZ attribute of each private subnet.
+    - PASS: two distinct AZs in the configured region.
+    - FAIL: Finding Risk/Risk.
+    - BLOCKED: AZ values unknown at plan time and no AWS read access.
+    - _Requirements: 6.4_
+  - [x] 6.5 CHK-NET-005 Interface endpoint absence and NAT dependency
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: interface endpoint count.
+    - PASS: if zero, record NAT dependency for ECR (API/Docker), Secrets Manager and CloudWatch Logs as an accepted dependency (Informational/Informational).
+    - FAIL: not used (accepted dependency, not a failure).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 6.5_
+  - [x] 6.6 CHK-NET-006 No public IP on private subnets
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: `map_public_ip_on_launch` per private subnet and routes to the IGW.
+    - PASS: false everywhere on private subnets and no IGW route.
+    - FAIL: identify the subnet; Finding Blocker/Blocker; mark networking failed.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 6.6_
+
+- [ ] 7. Group A (f) — Security groups and IAM
+  - [x] 7.1 CHK-SGI-001 ALB security group
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; file read `modules/backend/alb.tf`.
+    - Expected evidence: ingress rules of the ALB SG.
+    - PASS: exactly one ingress source, the CloudFront origin-facing prefix list, on the listener port only.
+    - FAIL: any other source, CIDR or port: Finding Blocker/Blocker (steering security rule).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 7.1_
+  - [x] 7.2 CHK-SGI-002 ECS security group
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: ingress rules of the ECS SG.
+    - PASS: exactly one ingress source, the ALB SG, on `container_port`.
+    - FAIL: Finding Blocker/Blocker.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 7.2_
+  - [x] 7.3 CHK-SGI-003 All `0.0.0.0/0` rules
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: each ingress/egress `0.0.0.0/0` rule with justification, or "none found".
+    - PASS: every rule justified in writing, or none found.
+    - FAIL: unjustified rule: Finding Risk/Risk (Blocker/Blocker if ingress exposes a private workload).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 7.3_
+  - [x] 7.4 CHK-SGI-004 ECS execution role permissions
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; file read `modules/backend/iam.tf`.
+    - Expected evidence: attached policies and Resource entries.
+    - PASS: exactly `AmazonECSTaskExecutionRolePolicy` plus one Secrets Manager read policy with exact secret ARNs and no wildcard.
+    - FAIL: extra or broader permission: Finding Risk/Risk (Blocker/Blocker if wildcard secrets access).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 7.4_
+  - [x] 7.5 CHK-SGI-005 ECS task role least privilege
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: task role policies.
+    - PASS: no `AdministratorAccess`, no `*` or `<service>:*` action, no `*` Resource except justified.
+    - FAIL: Finding per exception (Blocker/Blocker for AdministratorAccess; otherwise Risk/Risk).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 7.5_
+  - [x] 7.6 CHK-SGI-006 Trust policies
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: principal and conditions of each ECS role trust policy.
+    - PASS: only `ecs-tasks.amazonaws.com` with `aws:SourceAccount` and `aws:SourceArn`.
+    - FAIL: Finding Risk/Risk.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 7.6_
+  - [x] 7.7 CHK-SGI-007 No IAM users or access keys
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: counts of `aws_iam_user` and `aws_iam_access_key`.
+    - PASS: both zero.
+    - FAIL: Finding per resource, Blocker/Blocker (steering security rule).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 7.7_
+  - [x] 7.8 CHK-SGI-008 `distinct()` and single secret ARN Resource entry
+    - Prerequisites: 3.4, 3.5, 7.4 (order)
+    - Approved read-only commands: file read `modules/backend/secrets.tf`; in-memory `PLANQ`.
+    - Expected evidence: file:line of `distinct()`; Resource entry count per ARN.
+    - PASS: `distinct()` location recorded and exactly one Resource entry for the secret ARN.
+    - FAIL: ARN duplicated: Finding Risk/Risk.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 7.8_
+  - [x] 7.9 CHK-SGI-009 Secret KMS key
+    - Prerequisites: 2.2, 4.1 (order)
+    - Approved read-only commands: `aws secretsmanager describe-secret --secret-id <app_secret_arn> ...` (read `KmsKeyId` only; never any value).
+    - Expected evidence: KmsKeyId present/absent.
+    - PASS: AWS-managed key (Informational/Informational), or customer-managed key with `kms:Decrypt` granted to the execution role in the plan.
+    - FAIL: CMK without `kms:Decrypt` grant: Finding Risk/Risk (Blocker/Blocker for Application if tasks cannot start).
+    - BLOCKED: AWS read access or secret metadata access missing.
+    - _Requirements: 7.9_
+
+- [ ] 8. Group A (g) — CloudFront and S3
+  - [x] 8.1 CHK-EDG-001 S3 public access block and encryption
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; file read `modules/edge/s3.tf`.
+    - Expected evidence: four flags and SSE algorithm.
+    - PASS: all four flags true and AES256.
+    - FAIL: Finding Blocker/Blocker (steering security rule).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 8.1, 8.12_
+  - [x] 8.2 CHK-EDG-002 Bucket policy
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: policy statements (principal, action, condition keys).
+    - PASS: exactly one `s3:GetObject` statement, CloudFront service principal, condition `AWS:SourceArn` equals distribution ARN.
+    - FAIL: Finding Blocker/Blocker.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 8.2, 8.12_
+  - [x] 8.3 CHK-EDG-003 OAC and no OAI
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: OAC signing behavior/protocol, origin domain type, OAI count.
+    - PASS: `always`/`sigv4`, regional bucket domain name, zero OAI.
+    - FAIL: Finding Blocker/Blocker.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 8.3, 8.12_
+  - [x] 8.4 CHK-EDG-004 Default root object
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: `default_root_object` value.
+    - PASS: equals `index.html`.
+    - FAIL: Finding Risk/Risk.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 8.4, 8.12_
+  - [x] 8.5 CHK-EDG-005 Ordered API behaviors
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: ordered behaviors, cache policy, methods, viewer protocol policy.
+    - PASS: exactly `/api/*` and `/v1/*`, caching-disabled policy, 7 HTTP methods, redirect-to-https.
+    - FAIL: Finding Blocker/Blocker (Requirement 13.5 if a diffed attribute is missing).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 8.5, 8.12_
+  - [x] 8.6 CHK-EDG-006 VPC Origin target and protocol
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; file read of `modules/backend/outputs.tf` and `modules/edge/cloudfront.tf`.
+    - Expected evidence: VPC Origin target is the module reference `alb_arn`; protocol and port.
+    - PASS: ARN from backend `alb_arn`, `http-only`, port 80.
+    - FAIL: Finding Blocker/Blocker.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 8.6, 8.12_
+  - [x] 8.7 CHK-EDG-007 Default certificate, no ACM or Route 53
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: `cloudfront_default_certificate`; ACM and Route 53 resource counts.
+    - PASS: true; zero ACM; zero Route 53.
+    - FAIL: Finding Blocker/Blocker (steering scope rule).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 8.7, 8.12_
+  - [x] 8.8 CHK-EDG-008 WAF disabled
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; file read of `enable_waf` in tfvars.
+    - Expected evidence: `web_acl_id` and web ACL count.
+    - PASS: with `enable_waf = false`, `web_acl_id` null and zero web ACLs.
+    - FAIL: Finding Risk/Risk.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 8.8, 8.12_
+  - [x] 8.9 CHK-EDG-009 CloudFront diff vs plan
+    - Prerequisites: 3.4 (plan-readable), 3.6 (order), 3.7 (order)
+    - Approved read-only commands: `git status` and `git diff -- ecs-terraform/modules/edge/cloudfront.tf` (cwd repo root); in-memory `PLANQ`; file `stat` mtimes.
+    - Expected evidence: changed attribute set D (for example `/v1/*` path, cache policy, methods, viewer policy, origin), its presence in plan set P (attribute names and address only), mtime comparison.
+    - PASS: every attribute in D appears in P with matching value: Finding Informational/Informational "uncommitted but reflected in plan" (a newer file verified to match is Informational only).
+    - FAIL: any D attribute absent from P or different: Finding Blocker/Blocker, Blocks_Field "Bootstrap_Readiness; Requirement 13.5"; proposal to regenerate the plan (AWAITING_APPROVAL; `plan -out` is denied). Also add a Risk/Risk Finding if the source differs from the plan or is newer and a match cannot be verified.
+    - BLOCKED: plan unreadable or git unavailable.
+    - _Requirements: 13.5, 5.6_
+
+- [x] 9. Group A (h) — ECS, ALB and ECR
+  - [x] 9.1 CHK-ECS-001 Fargate in private subnets without public IP
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: launch type, service subnets, `assign_public_ip`.
+    - PASS: Fargate, all subnets private, `assign_public_ip = false`.
+    - FAIL: Finding per attribute, Blocker/Blocker.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 9.1_
+  - [x] 9.2 CHK-ECS-002 Desired count and autoscaling bounds
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: `desired_count`, `min_capacity`, `max_capacity`.
+    - PASS: 0, 0, 2.
+    - FAIL: Finding per differing value, Blocker/Blocker.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 9.2_
+  - [x] 9.3 CHK-ECS-003 Internal ALB, listener, target group
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: scheme, subnets, listener count/protocol, target group type/port.
+    - PASS: internal scheme, private subnets, exactly one HTTP listener to an IP target group on `container_port`.
+    - FAIL: Finding per mismatch, Blocker/Blocker.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 9.3_
+  - [x] 9.4 CHK-ECS-004 ECR: planned name, state and plan action
+    - Prerequisites: 3.4, 3.5, 4.1 (order)
+    - Approved read-only commands: in-memory `PLANQ` (exact case-sensitive name of `aws_ecr_repository` change); result of `terraform state list` (cwd Dev_Root) from 4.1.
+    - Expected evidence: `planned_repo_name`, `managed_by_terraform`, `plan_action` (create, none, other). Do not assume the repository is missing.
+    - The `managed_by_terraform` fact is taken from the 4.1 `terraform state list` result when 4.1 produced a readable listing (PASS or FAIL). It is recorded as unknown, with this check BLOCKED naming 4.1 only, if 4.1 itself is BLOCKED (state unreadable / no access / not initialized).
+    - PASS: all three recorded.
+    - FAIL: not used (facts only).
+    - BLOCKED: plan unreadable, or `managed_by_terraform` unknown because 4.1 is BLOCKED (name 4.1).
+    - _Requirements: 9.4, 9.6_
+  - [x] 9.5 CHK-ECS-005 ECR: repository and image tag in AWS
+    - Prerequisites: 2.2, 9.4
+    - Approved read-only commands: `aws ecr describe-repositories --repository-names <planned_repo_name> ...`; `aws ecr describe-images --repository-name <planned_repo_name> --image-ids imageTag=sha-a454df4 ...`; when the repository is missing, `aws ecr describe-repositories ...` and `describe-images` for the tag in each other repository (no pull, no login).
+    - Expected evidence: `exists_in_aws`, `tag_found_elsewhere`, tag, digest, tag mutability, `access`.
+    - PASS: metadata queries completed and recorded (repository absent is a recorded fact, not a failure).
+    - FAIL: a query returns an unexpected error other than not-found: record error; Finding Risk/Risk.
+    - BLOCKED: ONLY for "ECR read access unavailable" (name the missing access).
+    - _Requirements: 9.4, 9.5, 9.7_
+  - [x] 9.6 CHK-ECS-006 ECR decision table outcome
+    - Prerequisites: 9.4, 9.5 (real prerequisites, G4 applies)
+    - Approved read-only commands: none (decision over recorded inputs).
+    - Expected evidence: the three facts separately (exists in AWS / managed by Terraform / creation conflict) and exactly one table row (first match wins).
+    - PASS: exactly one outcome recorded. Rows: 1 no access: BLOCKED "ECR read access unavailable", Risk/Risk. 2 exists, in state, plan none: Informational/Informational. 3 exists, not in state, plan create: `RepositoryAlreadyExists` conflict, Blocker/Blocker, proposal import (AWAITING_APPROVAL), Blocks_Field "Bootstrap_Readiness; Requirement 9.6". 4 exists, not in state, plan not creating: Risk/Risk, review ownership. 5 missing, plan create, tag absent everywhere: Informational/Informational plus image-tag Finding Risk (Bootstrap)/Blocker (Application). 6 missing, tag found elsewhere: Risk/Blocker. 7 missing, in state: state drift Blocker/Blocker. 8 other: Risk/Risk manual review.
+    - FAIL: when the outcome is a Blocker row (3 or 7), the check is recorded FAIL and linked to its Finding; never apply or import automatically.
+    - BLOCKED: 9.4/9.5 BLOCKED (name it).
+    - _Requirements: 9.4, 9.6, 9.7, 13.10_
+  - [x] 9.7 CHK-ECS-014 Image tag in a different repository
+    - Prerequisites: 9.5 (and 9.4)
+    - Approved read-only commands: `aws ecr describe-repositories ...`; `aws ecr describe-images --repository-name <other_repo> --image-ids imageTag=sha-a454df4 ...` (conditional: only when `exists_in_aws` is false).
+    - Expected evidence: actual repository name and masked URL vs the repository the task definition will reference.
+    - PASS: condition absent (repository exists) recorded as Evidence of the absent condition, or tag not found elsewhere.
+    - FAIL: tag found in another repository: Finding Risk (Bootstrap)/Blocker (Application), Blocks_Field "Application_Deployment_Readiness; task definition image reference; Requirement 9.14"; proposal re-tag and push or change the repository name (AWAITING_APPROVAL).
+    - BLOCKED: only "ECR read access unavailable".
+    - _Requirements: 9.14, 9.7_
+  - [x] 9.8 CHK-ECS-007 ECR immutability and lifecycle policy
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; file read `modules/backend/ecr.tf`.
+    - Expected evidence: `image_tag_mutability`; lifecycle policy present/absent.
+    - PASS: `IMMUTABLE`; lifecycle presence recorded.
+    - FAIL: not IMMUTABLE: Finding Blocker/Blocker.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 9.12_
+  - [x] 9.9 CHK-ECS-008 Secret and env injection
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; file read `modules/backend/ecs.tf`.
+    - Expected evidence: container definition keys (names and ARN references only; no values).
+    - PASS: `MONGODB_URL` and `STAFF_ADMIN_MONGO_URL` are secrets from Secrets Manager ARNs; `DB_NAME` and `STAFF_ADMIN_DB_NAME` plain environment values.
+    - FAIL: Finding per variable, Blocker/Blocker.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 9.11_
+  - [x] 9.10 CHK-ECS-009 Desired-count drift (FND-ECS-DRIFT)
+    - Prerequisites: 9.2 (order)
+    - Approved read-only commands: file read / content search of `modules/backend/ecs.tf` and `modules/backend/*.tf` for `ignore_changes`.
+    - Expected evidence: presence or absence of `lifecycle.ignore_changes = [desired_count]` (file:line).
+    - PASS: result recorded.
+    - FAIL: not used; if absent while autoscaling manages the count: FND-ECS-DRIFT Risk/Risk, proposal add `ignore_changes` (AWAITING_APPROVAL); if present: Informational/Informational.
+    - BLOCKED: sources unreadable.
+    - _Requirements: 9.10, 16.2_
+  - [x] 9.11 CHK-ECS-015 Image platform vs Fargate task CPU architecture
+    - Prerequisites: 9.5, 9.9 (order)
+    - Approved read-only commands: in-memory `PLANQ` (`terraform show -json tfplan-dev-lockfile | jq <read-only filter>`) to read `aws_ecs_task_definition` runtime_platform (cpu_architecture, operating_system_family) and cpu/memory; file read `modules/backend/ecs.tf`; AND, ONLY after separate explicit user approval (not yet granted, operation currently denied by the gate), the single metadata-only call `aws ecr batch-get-image --repository-name eruditiontx-app-ecs-dev-app --image-ids imageTag=sha-a454df4 --accepted-media-types application/vnd.oci.image.index.v1+json application/vnd.oci.image.manifest.v1+json application/vnd.docker.distribution.manifest.v2+json --profile charltonecs --region us-east-1`, which returns the manifest/index JSON (platform entries) but NOT layers; no pull, no login.
+    - Expected evidence: task definition cpu_architecture (X86_64 default if unset, or ARM64) and the image index platforms (os/architecture per manifest entry; attestation entries show unknown/unknown).
+    - PASS: the image index (or manifest config architecture) includes a linux platform matching the task definition cpu_architecture (amd64 for X86_64, arm64 for ARM64) AND the task definition's operating_system_family is LINUX.
+    - FAIL: no matching platform: Finding Blocker/Blocker for Application, Risk/Risk for Bootstrap (desired_count = 0 starts no task); proposal change cpu_architecture or rebuild/push a multi-arch image (AWAITING_APPROVAL).
+    - BLOCKED: manifest read not approved (missing: approved ecr batch-get-image manifest-only call); the plan side (task definition architecture) is still recorded.
+    - _Requirements: 9.4, 9.8 (check ID CHK-ECS-015: R9)_
+
+- [ ] 10. Group A (i) — Atlas prerequisites
+  - [ ] 10.1 CHK-ATL-001 Secret exists
+    - Prerequisites: 2.2, 7.9 (order)
+    - Approved read-only commands: `aws secretsmanager describe-secret --secret-id <app_secret_arn> ...` (30 s timeout; metadata only).
+    - Expected evidence: secret exists in `us-east-1` (name/ARN masked); no value or URI.
+    - PASS: exists.
+    - FAIL: not-found: Finding Blocker/Blocker (tasks cannot start; Application criterion).
+    - BLOCKED: access denied or timeout (state which).
+    - _Requirements: 10.1, 10.2_
+  - [ ] 10.2 CHK-ATL-002 Secret ARN equality and single Atlas user
+    - Prerequisites: 2.1
+    - Approved read-only commands: file read of `terraform.tfvars` (ARN comparison only, masked).
+    - Expected evidence: `app_secret_arn` equals / differs from `staff_admin_secret_arn`; two DBs (`teacher_student_db`, `admin_staff_mongodb`) use one Atlas user.
+    - PASS: equality recorded.
+    - FAIL: not used.
+    - BLOCKED: tfvars unreadable.
+    - _Requirements: 10.3_
+  - [ ] 10.3 CHK-ATL-003 Atlas allowlist entries
+    - Prerequisites: 1.1
+    - Approved read-only commands: none (user-provided text only; Atlas is not queried).
+    - Expected evidence: user-provided list.
+    - PASS: list provided and contains no `0.0.0.0/0`.
+    - FAIL: `0.0.0.0/0` present: Finding Risk/Risk (Requirement 10.5).
+    - BLOCKED: while the user has not supplied the allowlist, status is BLOCKED naming "Atlas allowlist not provided". Never guess the allowlist and never change Atlas settings.
+    - _Requirements: 10.5_
+
+- [ ] 11. Group A (j) — Observability (static)
+  - [ ] 11.1 CHK-OBS-001 ECS log group retention
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; file read `modules/backend/logs.tf`.
+    - Expected evidence: log group count and `retention_in_days`.
+    - PASS: exactly one ECS log group with 7-day retention.
+    - FAIL: Finding Risk/Risk (indefinite retention violates steering).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 11.1_
+  - [ ] 11.2 CHK-OBS-002 Alarms and dashboard dimensions
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; file read `modules/observability/cloudwatch_alarms.tf`, `dashboard.tf`.
+    - Expected evidence: list of alarm names and dashboard; dimension sources.
+    - PASS: dimensions reference module outputs, none hardcoded.
+    - FAIL: Finding per hardcoded dimension (Risk/Risk).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 11.2_
+  - [ ] 11.3 CHK-OBS-003 SNS disabled (FND-SNS-OFF input)
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`; file read `modules/observability/sns.tf` and tfvars flag.
+    - Expected evidence: SNS topic/subscription counts and alarm actions.
+    - PASS: with `enable_observability_sns = false`, zero topics/subscriptions and empty alarm actions recorded.
+    - FAIL: SNS resources appear while disabled: Finding Risk/Risk.
+    - BLOCKED: plan unreadable.
+    - _Requirements: 11.3_
+  - [ ] 11.4 CHK-OBS-004 WAF, CloudTrail, security alerts off
+    - Prerequisites: 3.4, 3.5
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: counts of such resources.
+    - PASS: zero.
+    - FAIL: Finding per resource, Risk/Risk (steering scope).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 11.4_
+  - [ ] 11.5 CHK-OBS-005 Alarms affected by `desired_count = 0`
+    - Prerequisites: 3.4, 3.5, 11.2 (order), 9.2 (order)
+    - Approved read-only commands: in-memory `PLANQ`.
+    - Expected evidence: alarms that can enter ALARM or INSUFFICIENT_DATA, with names and expected state.
+    - PASS: list recorded (or none).
+    - FAIL: not used; one Finding per affected alarm (Risk/Risk, or Informational/Informational with no notification).
+    - BLOCKED: plan unreadable.
+    - _Requirements: 11.5_
+
+- [ ] 12. Group A (k) — Findings consolidation
+  - [ ] 12.1 CHK-FND-001 tfvars comments vs values
+    - Prerequisites: 2.1
+    - Approved read-only commands: file read of `terraform.tfvars` (values masked) and in-memory `PLANQ`.
+    - Expected evidence: each comment contradicted by a value (for example "no image pushed" vs `image_tag = "sha-a454df4"`).
+    - PASS: all comments compared; contradictions each recorded as a separate Finding (Risk/Risk).
+    - FAIL: not used.
+    - BLOCKED: tfvars unreadable.
+    - _Requirements: 13.3_
+  - [ ] 12.2 CHK-FND-002 Steering vs modules
+    - Prerequisites: 2.1, 3.4, 3.5 (plan-readable)
+    - Approved read-only commands: file read of `.kiro/steering/*.md` and module files.
+    - Expected evidence: each deviation cites the steering rule and module file path.
+    - PASS: comparison completed; each deviation recorded (Blocker only for security, state or scope rules; others Risk).
+    - FAIL: not used.
+    - BLOCKED: steering or module unreadable (path).
+    - _Requirements: 13.4, 13.2_
+  - [ ] 12.3 CHK-FND-003 Mandatory register entries and known limitations
+    - Prerequisites: 9.10 (order), 11.3 (order), 12.1 (order), 12.2 (order)
+    - Approved read-only commands: none (register review).
+    - Expected evidence: register contains FND-ECS-DRIFT (Risk/Risk), FND-SNS-OFF (Informational/Risk), FND-ATLAS-NAT (Informational/Blocker; POST, Group B; Blocks_Field Atlas connectivity), FND-COST (Risk/Risk; idle-cost resource list now, totals appended by 13.1). Absent condition: Informational/Informational with a statement. Also present: Known_Limitation findings, each Informational at Bootstrap and Blocker at Application with Blocks_Field: Landing_Page_Image (Application_Deployment_Readiness; Requirement 9.13), empty S3 frontend and no custom error response (Requirement 8.11), empty Atlas cluster with indexes created by LMS_API at startup (CHK-ATL-005), non-`/api/*`/`/v1/*` routes served by S3 (Informational/Risk), LMS_API port/env changes as proposals (Informational/Blocker; Requirement 9.9), no Jenkinsfile (Risk/Blocker; Requirement 12.2), stale renderings (Risk/Risk).
+    - PASS: all four mandatory entries and known-limitation findings exist with both severities, a Blocks_Field, evidence, and proposals `AWAITING_APPROVAL`; application severity never below bootstrap.
+    - FAIL: any entry missing or severity inversion: add it; record Finding about the gap.
+    - BLOCKED: not used.
+    - _Requirements: 8.9, 8.10, 9.8, 9.9, 10.6, 13.1, 13.2, 13.8, 13.9, 16.1, 16.2, 16.3, 16.4, 16.5, 16.6_
+
+- [x] 13. Group A (l) — Cost estimation
+  - [x] 13.1 CHK-COST-001 Cost table (fixed / usage / unknown)
+    - Prerequisites: 12.3, 3.4 (plan-readable), 3.8 (order), 9.2 (order)
+    - Approved read-only commands: file read of `modules/backend` task definition values; in-memory `PLANQ` (resource types and counts only); `aws pricing get-products`, `aws pricing describe-services`, `aws pricing get-attribute-values` with `--region us-east-1` (price filter location US East (N. Virginia)); public AWS pricing pages (URL and retrieval date).
+    - Expected evidence: region, 730 h/month, data transfer GB, log ingestion/storage GB, alarm count, secret count; per line cost_type (FIXED_HOURLY, USAGE_BASED, UNKNOWN), unit price source URL and retrieval date; `fixed_subtotal`, `usage_subtotal`, `total`; Fargate excluded while `desired_count = 0` with one-task hourly cost; idle-charge resources and removal/disable proposals (AWAITING_APPROVAL). Update FND-COST with totals.
+    - PASS: every line classified once; no price invented; UNKNOWN lines excluded from totals and the total flagged incomplete while any UNKNOWN exists (for example CloudFront VPC Origin/OAC).
+    - FAIL: not used (unavailable prices are UNKNOWN with reason).
+    - BLOCKED: plan unreadable (counts) or pricing access unavailable: lines UNKNOWN, total incomplete.
+    - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7, 16.5_
+
+- [ ] 14. Group A (m) — Safety bracket end
+  - [ ] 14.1 CHK-SAF-001 (end) Compare fingerprints
+    - Prerequisites: 2.3, 13.1 (order)
+    - Approved read-only commands: file read to recompute the SHA-256 of the same file set; `aws s3api head-object --bucket <state_bucket> --key ecs-dev/terraform.tfstate ...` (metadata only).
+    - Expected evidence: start vs end checksums, VersionId, ETag, LastModified; local state files unchanged.
+    - PASS: all identical.
+    - FAIL: any difference: Finding Blocker/Blocker; stop the run.
+    - BLOCKED: head-object access unavailable: that comparison BLOCKED naming the missing access (checksum comparison still recorded).
+    - _Requirements: 2.4_
+
+- [ ] 15. Checkpoint: Group A review
+  - Stop and show the user all Group A statuses, evidence references, Findings and proposals. Do not start Groups B/C reporting or apply any fix until the user responds. Ask questions if any input was missing.
+
+- [ ] 16. Group B — Post-deployment infrastructure verification (DEFERRED; register only)
+  - [ ]* 16.1 CHK-NET-007 NAT EIP for Atlas allowlist
+    - NOT TESTED until: user has run `terraform apply` and the NAT Gateway Elastic IP (`nat_public_ip`) exists. Depends on: NAT Gateway / Elastic IP.
+    - MUST NOT be executed before the user's `terraform apply` AND a separate user approval. Execution now = record NOT TESTED registration in the report only.
+    - Approved read-only commands (for later): `aws ec2 describe-nat-gateways ...`, `aws ec2 describe-addresses ...`.
+    - Expected evidence (later): NAT IP and the value `<ip>/32` to add to the Atlas allowlist.
+    - PASS / FAIL / BLOCKED (later): PASS when the IP is recorded as the value to add; BLOCKED if the IP is unknown; never PASS before apply.
+    - _Requirements: 6.7, 4.3, 4.5, 16.4_
+  - [ ]* 16.2 CHK-ATL-004 Atlas allowlist contains NAT IP
+    - NOT TESTED until: apply completed, `nat_public_ip` known and the user supplies the post-deploy Atlas access list. Depends on: NAT Elastic IP.
+    - MUST NOT be executed before apply and a separate approval; now only registered NOT TESTED.
+    - Approved read-only commands (for later): none (user-provided text).
+    - While the allowlist is not supplied: BLOCKED naming "Atlas allowlist not provided"; never guess or change Atlas settings.
+    - PASS / FAIL / BLOCKED (later): PASS if `<ip>/32` is listed; FAIL (Finding FND-ATLAS-NAT stays Blocker at Application) if missing; BLOCKED if the IP is unknown or the list is not provided.
+    - _Requirements: 10.4, 10.7, 16.4_
+  - [ ]* 16.3 CHK-EDG-011 Empty frontend bucket
+    - NOT TESTED until: apply completed and the frontend bucket and distribution exist. Depends on: S3 frontend bucket, CloudFront distribution.
+    - MUST NOT be executed before apply and a separate approval; now only registered NOT TESTED.
+    - Approved read-only commands (for later): `aws s3api list-objects-v2 --bucket <frontend_bucket> --max-items 1 ...`, `aws cloudfront get-distribution --id <distribution_id> ...`.
+    - PASS / FAIL / BLOCKED (later): object count recorded (0 expected, Known_Limitation); BLOCKED if resources do not exist.
+    - _Requirements: 8.9, 4.3, 4.5_
+  - [ ]* 16.4 CHK-EDG-012 CloudFront HTTPS response
+    - NOT TESTED until: apply completed and the CloudFront domain is deployed. Depends on: CloudFront distribution.
+    - MUST NOT be executed before apply and a separate approval; now only registered NOT TESTED.
+    - Approved read-only commands (for later): HTTPS request to `cloudfront_domain_name` (10 s limit), approved by the user at that time.
+    - PASS / FAIL / BLOCKED (later): TLS handshake and HTTP response within 10 s is PASS; otherwise FAIL with a Finding.
+    - _Requirements: 8.11, 4.3, 4.5_
+  - [ ]* 16.5 CHK-ECS-011 RUNNING equals desired
+    - NOT TESTED until: apply completed and the user scales the service above 0. Depends on: ECS service.
+    - MUST NOT be executed before apply and a separate approval; now only registered NOT TESTED.
+    - Approved read-only commands (for later): `aws ecs describe-services ...`, `aws ecs list-tasks ...`, `aws ecs describe-tasks ...`.
+    - PASS / FAIL / BLOCKED (later): RUNNING equals desired within 300 s; record stopped-task reason on failure.
+    - _Requirements: 9.13, 4.3, 4.5_
+  - [ ]* 16.6 CHK-ECS-012 ALB targets healthy
+    - NOT TESTED until: apply completed and tasks are RUNNING. Depends on: ALB target group, ECS tasks.
+    - MUST NOT be executed before apply and a separate approval; now only registered NOT TESTED.
+    - Approved read-only commands (for later): `aws elbv2 describe-target-health ...`.
+    - PASS / FAIL / BLOCKED (later): all targets healthy within 300 s of RUNNING; record unhealthy reason on failure.
+    - _Requirements: 9.13, 4.3, 4.5_
+  - [ ]* 16.7 CHK-OBS-006 Log event after first task start
+    - NOT TESTED until: apply completed and a task has started. Depends on: ECS log group.
+    - MUST NOT be executed before apply and a separate approval; now only registered NOT TESTED.
+    - Approved read-only commands (for later): `aws logs describe-log-streams ...` (`lastEventTimestamp` only; event contents never read).
+    - PASS / FAIL / BLOCKED (later): a stream within 5 min of first task start.
+    - _Requirements: 11.6, 4.3, 4.5_
+  - [ ]* 16.8 CHK-OBS-007 Alarm states
+    - NOT TESTED until: apply completed. Depends on: CloudWatch alarms.
+    - MUST NOT be executed before apply and a separate approval; now only registered NOT TESTED.
+    - Approved read-only commands (for later): `aws cloudwatch describe-alarms ...`.
+    - PASS / FAIL / BLOCKED (later): each state recorded; each non-OK alarm a Finding.
+    - _Requirements: 11.6, 4.3, 4.5_
+
+- [ ] 17. Group C — Application integration and Jenkins CI/CD readiness
+  - [ ] 17.1 CHK-CIC-001 Jenkinsfile search
+    - Prerequisites: 2.1
+    - Approved read-only commands: file search of the whole repo excluding `.git/` and `node_modules/` for `Jenkinsfile`; `git ls-files` (cwd repo root).
+    - Expected evidence: repo-relative paths of every Jenkinsfile (none found per design).
+    - PASS: search completed and result recorded with paths (or "none").
+    - FAIL: not used; if none tracked, one Finding Risk (Bootstrap)/Blocker (Application), Blocks_Field "Application_Deployment_Readiness; Requirement 12.2".
+    - BLOCKED: repository unreadable.
+    - _Requirements: 12.1, 12.2_
+  - [ ] 17.2 CHK-CIC-002 Pipeline-content checks
+    - Prerequisites: 17.1
+    - Approved read-only commands: file read of Jenkinsfile (only if found); never create, modify or delete pipelines.
+    - Expected evidence: pipeline content findings (stages, credentials use).
+    - PASS: Jenkinsfile found and content checks completed with evidence.
+    - FAIL: content violates CI/CD steering (for example hardcoded credentials): Finding Blocker/Blocker.
+    - BLOCKED: Jenkinsfile and equivalent evidence (Jenkins job config export or log provided by the user) both unavailable: this check and every other pipeline-content check is explicitly BLOCKED naming "Jenkinsfile not available". Never create or modify a Jenkinsfile.
+    - _Requirements: 12.2, 12.3, 12.9_
+  - [ ] 17.3 CHK-CIC-003 `modules/cicd/` contents
+    - Prerequisites: 2.1
+    - Approved read-only commands: directory listing of `ecs-terraform/modules/cicd/`; in-memory `PLANQ` for Jenkins resources.
+    - Expected evidence: zero `.tf` files; Jenkins host, IAM role, credentials not managed by this plan.
+    - PASS: recorded with evidence.
+    - FAIL: not used; Finding Risk/Blocker for Application if CI/CD infrastructure is expected but absent.
+    - BLOCKED: directory unreadable.
+    - _Requirements: 12.4_
+  - [ ] 17.4 CHK-CIC-004 Last push from Jenkins build logs
+    - Prerequisites: 1.1
+    - Approved read-only commands: none (user-provided log excerpts only).
+    - Expected evidence: ECR repo name, image tag, account ID masked to last 4.
+    - PASS: values taken from provided logs.
+    - FAIL: logs contradict the plan or repository (for example different repo): Finding per ECS-014 severity.
+    - BLOCKED: no logs provided: never infer values.
+    - _Requirements: 12.5, 12.6_
+  - [ ] 17.5 CHK-CIC-005 No committed credentials
+    - Prerequisites: 4.2
+    - Approved read-only commands: file content search over tracked files from `git ls-files` for access key ID, secret key and session token patterns; matched values never printed.
+    - Expected evidence: zero matches, or file:line without values.
+    - PASS: zero matches.
+    - FAIL: Finding per file, Blocker/Blocker (steering security rule); secret named by file only; check FAIL and run continues.
+    - BLOCKED: file list unavailable.
+    - _Requirements: 12.7, 2.9_
+  - [ ] 17.6 CHK-EDG-010 Routes outside the API paths
+    - Prerequisites: 8.5 (order)
+    - Approved read-only commands: file read `modules/edge/cloudfront.tf`.
+    - Expected evidence: default behavior targets S3, so `/docs` and `/health` are not served by the backend.
+    - PASS: recorded with file:line.
+    - FAIL: not used; Finding Informational (Bootstrap)/Risk (Application) naming any Application criterion that needs such a route.
+    - BLOCKED: source unreadable.
+    - _Requirements: 8.10_
+  - [ ] 17.7 CHK-ECS-010 Landing-page port and health path
+    - Prerequisites: 9.2 (order)
+    - Approved read-only commands: file read of tfvars (`container_port`, `health_check_path`) and `modules/backend/variables.tf`.
+    - Expected evidence: `container_port = 3000`, `health_check_path = "/"`, valid for the Landing_Page_Image only.
+    - PASS: values recorded.
+    - FAIL: not used; Known_Limitation Finding Informational (Bootstrap)/Blocker (Application), Blocks_Field "Application_Deployment_Readiness; Requirement 9.13"; LMS_API port/health/env changes recorded as proposals AWAITING_APPROVAL only (no change to Terraform, tfvars or plan).
+    - BLOCKED: tfvars unreadable.
+    - _Requirements: 9.8, 9.9_
+  - [ ] 17.8 CHK-ATL-006 Empty Atlas cluster
+    - Prerequisites: 2.1
+    - Approved read-only commands: file read of repo documentation and the inventory (no Atlas query).
+    - Expected evidence: cluster is empty; indexes are created by LMS_API `init_db()` at startup, not by Terraform.
+    - PASS: recorded.
+    - FAIL: not used; Known_Limitation Finding Informational (Bootstrap)/Blocker (Application), Blocks_Field "Application_Deployment_Readiness; CHK-ATL-005".
+    - BLOCKED: inventory missing.
+    - _Requirements: 10.6_
+  - [ ]* 17.9 CHK-ECS-013 LMS_API image check (deferred)
+    - NOT TESTED until: the LMS_API image is built and pushed to ECR (missing: LMS_API image; current image is the Landing_Page_Image). Depends on: ECR image, ECS task definition.
+    - MUST NOT be executed before apply and a separate user approval; now only registered NOT TESTED (never PASS while the dependency is unmet).
+    - Approved read-only commands (for later): `aws ecr describe-images ...` (metadata only).
+    - PASS / FAIL / BLOCKED (later): image is LMS_API on the expected port; BLOCKED naming the missing image.
+    - _Requirements: 9.8, 4.9_
+  - [ ]* 17.10 CHK-ATL-005 ECS-to-Atlas connectivity (deferred)
+    - NOT TESTED until: apply completed, NAT IP allowlisted, a running LMS_API task and populated Atlas data exist (missing: LMS image and Atlas data). Depends on: ECS tasks, NAT Gateway.
+    - MUST NOT be executed before apply and a separate user approval; never PASS or FAIL before deployment.
+    - Approved read-only commands (for later): none enumerated; approval required for any method.
+    - _Requirements: 10.8, 4.9_
+  - [ ]* 17.11 CHK-APP-001 Application integration tests (deferred)
+    - NOT TESTED until: LMS_API image and populated Atlas data exist (missing: LMS image, Atlas data). Registered only; no test is defined or run now. Naming the missing image/data in the report.
+    - Status: NOT TESTED (placeholder, optional). Group C, POST.
+    - MUST NOT be executed before apply and a separate user approval.
+    - _Requirements: 4.9, 10.8 (check ID CHK-APP-001: R4, R10)_
+  - [ ]* 17.12 CHK-CIC-007 Jenkins pipeline dry-run readiness review (deferred, documentation only)
+    - NOT TESTED until: a Jenkinsfile is available and the user approves a review. Documentation only: read and describe; never modify, create or trigger pipelines or jobs.
+    - Status: NOT TESTED (placeholder, optional). Group C, POST.
+    - MUST NOT be executed before apply and a separate user approval.
+    - _Requirements: 12.2, 12.3, 12.9 (check ID CHK-CIC-007: R12)_
+
+- [ ] 18. Generate the readiness report
+  - [ ] 18.1 Write `readiness-report.md` in the spec directory
+    - Prerequisites: 14.1, 15, 16.x, 17.x registered
+    - Approved read-only commands: file read of the run record; write ONLY `/home/charltoncagigas/ecs-terraform-cicd/.kiro/specs/ecs-terraform-pre-deployment-validation/readiness-report.md`.
+    - Expected evidence: sections 1 to 8 of the design: header (UTC time, commit SHA via `git log`, `tfplan-dev` by filename, tool versions); inspection inventory; dual verdicts per the verdict function (Bootstrap in-scope A and B, Application A, B and C; NOT READY if open Blocker at that level, else READY WITH CONDITIONS if any in-scope check is NOT TESTED or BLOCKED, else READY; Bootstrap NOT READY implies Application NOT READY) with open Blocker/Risk/Informational counts per level; Group A/B/C check tables (status, evidence reference, reason and missing prerequisite for BLOCKED); findings register with Blocks_Field, both severities, approval status; cost split (fixed, usage with labeled assumptions, UNKNOWN excluded, incomplete flag, price URLs and dates); conditions list of every NOT TESTED/BLOCKED check by name; proposals AWAITING_APPROVAL.
+    - PASS: all sections present, every FAIL linked to a Finding, every PASS has evidence.
+    - FAIL: missing section or unlinked FAIL: fix the report before presenting.
+    - BLOCKED: Group A not complete (name the incomplete task).
+    - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.9, 13.7, 13.10_
+  - [ ] 18.2 Verify the report is safe
+    - Prerequisites: 18.1
+    - Approved read-only commands: file read / content search of `readiness-report.md` and the spec directory listing.
+    - Expected evidence: zero secret values, account IDs, URIs; no plan content (filename only); no `tfplan*`, plan JSON or `*.tfstate` in the spec directory.
+    - PASS: all absent.
+    - FAIL: redact and rewrite the report; record a Finding if a secret was exposed.
+    - BLOCKED: report missing.
+    - _Requirements: 15.7, 2.6, 2.7_
+
+- [ ] 19. Final checkpoint: present report and proposals, then STOP
+  - Present `readiness-report.md`, both verdicts and every proposal (status `AWAITING_APPROVAL`) to the user. STOP. Apply no fix and run nothing further without explicit approval of each specific proposal. Do not run `terraform apply`.
+
+- [x] 20. Pre-apply read-only preflight (user-approved 2026-11-02)
+  - [x] 20.1 CHK-PRE-001 Account preflight: bucket name, service-linked roles, name conflicts, quotas
+    - Prerequisites: 2.2 (order)
+    - Approved read-only commands: `aws s3api head-bucket` for the planned frontend bucket; `aws iam get-role` for AWSServiceRoleForECS, AWSServiceRoleForElasticLoadBalancing, AWSServiceRoleForApplicationAutoScaling_ECSService, AWSServiceRoleForCloudFrontVPCOrigin and the two planned IAM role names; read-only lookups of planned ECS cluster, ALB, target group, CloudWatch alarm, CloudFront OAC, security group and log group names (`ecs describe-clusters`, `elbv2 describe-load-balancers`/`describe-target-groups`, `cloudwatch describe-alarms`, `cloudfront list-origin-access-controls`, `ec2 describe-security-groups`, `logs describe-log-groups`); `ec2 describe-vpcs`, `describe-addresses`, `describe-nat-gateways`; all with --profile charltonecs --region us-east-1; no IAM simulation, no service-linked role creation, no Service Quotas call.
+    - Expected evidence: per planned name found/not found (error class), CIDR overlap with 10.0.0.0/16, counts of VPCs/EIPs/NAT gateways, SLR existence.
+    - PASS: no conflict and no ambiguity, bucket free (404), required SLRs exist or creation permission unverified-but-no-conflict.
+    - FAIL: confirmed conflict (bucket owned by you, existing same-name resource not in state, CIDR overlap, quota at limit) = Blocker/Blocker conditional for apply.
+    - UNVERIFIED (not BLOCKED, not PASS): 403 or other ambiguous responses are recorded as UNVERIFIED and never as definitive ownership/availability.
+    - BLOCKED: AWS read access unavailable.
+    - _Requirements: 5.8, 6.6, 9.7 (check ID CHK-PRE-001)_
+
+- [ ] 21. Approved follow-ups (user-approved 2026-11-02)
+  - [x] 21.1 CHK-PRE-002 Read-only IAM simulation: iam:CreateServiceLinkedRole for the two absent service-linked roles
+    - Prerequisites: 20.1
+    - Approved read-only commands: `aws sts get-caller-identity` (to obtain the caller ARN, masked in reports) and `aws iam simulate-principal-policy` (read-only; --policy-source-arn <caller ARN> --action-names iam:CreateServiceLinkedRole --resource-arns for role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService and role/aws-service-role/vpcorigin.cloudfront.amazonaws.com/AWSServiceRoleForCloudFrontVPCOrigin with --context-entries ContextKeyName=iam:AWSServiceName,ContextKeyValues=<service principal>,ContextKeyType=string for each), --profile charltonecs --region us-east-1; no role creation.
+    - Expected evidence: EvalDecision per role (allowed / implicitDeny / explicitDeny), matched statements by source only, permissions boundary/organization limits noted (simulation covers identity policies and boundaries, NOT service control policies or resource-based policies).
+    - PASS: both allowed.
+    - FAIL: implicitDeny/explicitDeny (Finding Blocker conditional for apply: apply would fail creating the autoscaling policy or the VPC origin; proposal pre-create or grant permission, AWAITING_APPROVAL).
+    - UNVERIFIED: AccessDenied on simulate-principal-policy itself or ambiguous result (never PASS).
+    - BLOCKED: no AWS read access.
+    - _Requirements: 7.9, 9.7 (check ID CHK-PRE-002)_
+  - [x] 21.2 Single-file commit of modules/edge/cloudfront.tf
+    - Prerequisites: 20.1
+    - Approved commands: `git add -- ecs-terraform/modules/edge/cloudfront.tf`, `git diff --cached --stat`, `git commit -m "feat(terraform): set CloudFront default_root_object to index.html"`, `git status --short`, `git log -1 --stat`; no `git add .`/-A, no amend, no force, no push, no --no-verify, no history rewrite, never stage .kiro/ or plan/state files.
+    - Expected evidence: staged set equals exactly the one file (+2/-1), commit hash, file sha256 before/after equal (6bfde3e50315d8cc7579ee43c811a83550029b80e21835f7c25ce8073667cdb4), file mtime unchanged, 49-file baseline unaffected.
+    - PASS: exactly one file committed and working tree otherwise unchanged.
+    - FAIL: anything else staged (abort, unstage only the extra paths with `git restore --staged` after reporting).
+    - BLOCKED: git hook failure (report, do not bypass).
+    - _Requirements: 13.5 (user-approved single-file commit)_
+
+- [x] 22. FND-SEC-HIST-001 follow-up, step 1 (user-approved 2026-11-02; no contents extracted)
+  - [x] 22.1 CHK-SEC-001 Remote visibility, historical plan blob metadata and safe-inspection proposal
+    - Prerequisites: 21.2 (order)
+    - Approved read-only commands: sanitized parse of the remote URL from .git/config via a python3 one-liner that prints only remote name, scheme, host, owner/repo path with any userinfo/token stripped plus a boolean 'credentials embedded in URL' (never print the raw URL); `gh repo view` / `gh api` GET (read-only, if the GitHub CLI is installed and authenticated; output limited to visibility/isPrivate/isFork/forkCount/pushedAt via --json/--jq) or, for github.com remotes only, one unauthenticated HTTPS GET to the public repository metadata endpoint printing only the HTTP status code (200 public; 404 inconclusive: private or not found); `git ls-tree -l dacd47e -- <paths>` (blob sizes and ids only), `git cat-file -s <blobid>`, `git log --all --format=%h%x20%cI%x20%s -- <paths>`, `git branch -a --contains dacd47e`, `git tag --contains dacd47e`; NEVER `git show`/`cat-file -p`/`cat-file blob` of the plan blobs, no extraction, no scan, no history rewrite, no push, no credential rotation.
+    - Expected evidence: remote host/owner/repo (sanitized), visibility result, the two plan paths with sizes and blob ids, commits touching them, branches/tags containing the commit.
+    - PASS: facts recorded and the safe-inspection proposal written.
+    - UNVERIFIED: visibility cannot be determined (gh unavailable and unauthenticated GET inconclusive or non-GitHub host).
+    - BLOCKED: git unavailable.
+    - _Requirements: 12.8, 2.7 (check ID CHK-SEC-001; Finding FND-SEC-HIST-001)_
+
+  - [x] 22.2 CHK-SEC-002 In-memory credential scan of two historical plan blobs (user-approved)
+    - Prerequisites: 22.1 (order)
+    - Description: read blobs dd1097bcea960cf4d6a26528d7df69e65c4faade (ecs-terraform/bootstrap/tfplan) and b804dfb24a8ed412aae486dc326a621a9d61d2d1 (ecs-terraform/tfplan) from commit dacd47e via `git cat-file blob` into memory with a python3 stdlib script (subprocess, zipfile, re). No extracted files, no shell pipes. Run a synthetic-fixture self-test of the scanner first. Detect AWS access keys/secret keys, private keys, passwords, MongoDB connection strings, API tokens and other sensitive values. Output only class, count, member and offset, never values. Report what cannot be reliably inspected (binary/compressed/encoded members, unparseable archive).
+    - Constraints: no history rewrite, no push, no credential rotation, no AWS changes, no terraform apply; tfplan-dev-lockfile unchanged; stop after reporting.
+    - Expected evidence: self-test result, per blob: archive parse status, members scanned, findings by class with count, member and offset (no values), list of members or regions not reliably inspected.
+    - PASS: both blobs scanned, self-test passed, results reported without values.
+    - UNVERIFIED: one or more members or an entire blob could not be reliably inspected (binary/compressed/encoded members, unparseable archive).
+    - BLOCKED: git or python3 unavailable, or a blob cannot be read.
+    - _Requirements: 12.8, 2.7 (check ID CHK-SEC-002; Finding FND-SEC-HIST-001)_
+
+  - [x] 22.3 CHK-SEC-003 MessagePack-aware in-memory inspection of binary tfplan members (user-approved)
+    - Prerequisites: 22.2 (order)
+    - Description: for blobs dd1097bcea960cf4d6a26528d7df69e65c4faade and b804dfb24a8ed412aae486dc326a621a9d61d2d1 (commit dacd47e), read via `git cat-file blob` into memory, open as zip, take the 'tfplan' member only. Determine whether it is a decodable format using only python3 stdlib already installed (a pure-python msgpack decoder written inline is allowed; no installs, no pip, no network). Terraform plan 'tfplan' members are protobuf wrapping msgpack-encoded values; if safely decodable, walk decoded values in memory and check key names and values for credential-bearing fields (password, secret, token, access_key, private_key, connection string, mongodb URI, api key), PEM headers, AKIA/ASIA ids, JWTs. Output only category, count, location class (never values or snippets), decode coverage (bytes/values decoded vs not), and limitations. If it cannot be safely decoded, report UNVERIFIED and stop.
+    - Constraints: no disk writes, no external transmission, no shell pipes, no installs; no history rewrite, no push, no credential rotation, no AWS changes, no terraform apply; tfplan-dev-lockfile unchanged; stop after reporting.
+    - Expected evidence: per blob: zip parse status, tfplan member size, decode result, bytes/values decoded vs not decoded, findings by category with count and location class (no values), limitations.
+    - PASS: both tfplan members safely decoded with coverage reported and results reported without values.
+    - UNVERIFIED: a tfplan member could not be safely or fully decoded, or coverage is partial.
+    - BLOCKED: git or python3 unavailable, or a blob cannot be read.
+    - _Requirements: 12.8, 2.7 (check ID CHK-SEC-003; Finding FND-SEC-HIST-001)_
+
+  - [x] 22.4 CHK-SEC-004 Residual in-memory inspection: root-plan variables, tfstate-prev members, sensitive-path metadata (user-approved)
+    - Prerequisites: 22.3 (order)
+    - Description: for blobs dd1097bcea960cf4d6a26528d7df69e65c4faade and b804dfb24a8ed412aae486dc326a621a9d61d2d1 (commit dacd47e), in memory only via `git cat-file blob` + zipfile + an inline python3 stdlib protobuf/msgpack walker: (a) the 13 root-plan variables (check for non-empty sensitive values; variable names and values are never printed, report only counts and categories); (b) the tfstate-prev members of both blobs (credential-bearing fields and values); (c) sensitive-path metadata in the tfplan member (whether it flags values needing further investigation, counts only). Do not repeat completed scans; do not inspect unrelated files.
+    - Constraints: no disk writes, no installs, no network, no shell pipes; no history rewrite, no push, no credential rotation, no AWS changes, no terraform apply; tfplan-dev-lockfile unchanged; report only categories, counts and whether potentially sensitive values were detected; stop after reporting.
+    - Expected evidence: per blob: (a) variable count, count of non-empty values by category, sensitive-value detected yes/no; (b) tfstate-prev parse status, credential-bearing field counts by category, detected yes/no; (c) sensitive-path count and whether any flags values needing further investigation; decode coverage and limitations (no names or values).
+    - PASS: (a), (b) and (c) fully inspected for both blobs and reported without values.
+    - UNVERIFIED: any of (a), (b) or (c) could not be safely or fully inspected, or coverage is partial.
+    - BLOCKED: git or python3 unavailable, or a blob cannot be read.
+    - _Requirements: 12.8, 2.7 (check ID CHK-SEC-004; Finding FND-SEC-HIST-001)_
+
+- [x] 23. Pre-apply capacity verification (user-approved, read-only)
+  - [x] 23.1 CHK-CAP-001 Internet Gateway quota and current usage vs planned bootstrap
+    - Prerequisites: 20.1 (order)
+    - Description: user authorized (2026-11-02) a read-only Internet Gateway quota check for AWS profile charltonecs, region us-east-1. Determine the applicable quota 'Internet gateways per Region' (Service Quotas code vpc / L-A4707A72) and current IGW usage, then confirm the planned 1 new VPC + 1 new IGW fit without exceeding the quota, accounting for existing attached and detached IGWs.
+    - Approved read-only commands (argv arrays, no pipes/redirects/chaining; each adds --profile charltonecs --region us-east-1): `aws ec2 describe-internet-gateways` (count all IGWs incl. detached; addresses/ids masked, counts only); `aws service-quotas get-service-quota --service-code vpc --quota-code L-A4707A72` (applicable quota value); optional fallback `aws service-quotas get-aws-default-service-quota --service-code vpc --quota-code L-A4707A72` only if the applied quota call returns NoSuchResourceException (default quota). No create/attach/detach/delete; no terraform plan/apply; tfplan-dev-lockfile unchanged.
+    - Expected evidence: applicable quota value and source (applied vs default), current IGW count, expected count after bootstrap (current + 1), headroom.
+    - PASS: current IGW count + 1 <= applicable quota.
+    - FAIL: current IGW count + 1 > applicable quota: Finding Blocker/Blocker for Bootstrap (apply would fail creating the IGW); proposal request a quota increase or remove an unused IGW (AWAITING_APPROVAL).
+    - UNVERIFIED: quota value cannot be read (access denied / quota code not resolvable) or IGW list denied; record which and why.
+    - BLOCKED: AWS read access unavailable (2.2).
+    - _Requirements: 6.1, 2.12 (check ID CHK-CAP-001)_
+  - [x] 23.2 CHK-CAP-002 Grouped networking capacity: VPC CIDR conflicts, VPC/EIP/NAT quotas vs planned bootstrap
+    - Prerequisites: 23.1 (order)
+    - Description: user authorized (2026-11-02) one grouped read-only networking capacity check (profile charltonecs, region us-east-1). Verify: (1) existing VPCs and CIDR conflicts with the planned 10.0.0.0/16; (2) applied VPC quota and remaining capacity; (3) existing Elastic IP allocations and applicable EIP quota; (4) existing NAT Gateways and applicable NAT Gateway quota in the planned AZ us-east-1a; (5) whether the planned 1 VPC + 1 NAT Gateway + 1 Elastic IP fit within applicable quotas. Confirm the planned VPC CIDR (10.0.0.0/16) and planned AZ (us-east-1a) from terraform.tfvars / prior results; do not re-plan.
+    - Approved read-only commands (argv arrays; no pipes/redirects/chaining; each adds --profile charltonecs --region us-east-1): `aws ec2 describe-vpcs` (existing VPC CIDRs, counts + CIDR blocks only, no vpc ids/account ids); `aws ec2 describe-addresses` (count of allocated EIPs only); `aws ec2 describe-nat-gateways` (count of NAT gateways in state pending/available, per-AZ if subnet AZ resolvable, counts only); `aws service-quotas get-service-quota --service-code vpc --quota-code L-F678F1CE` (VPCs per Region); `aws service-quotas get-service-quota --service-code ec2 --quota-code L-0263D0A3` (EC2-VPC Elastic IPs per Region); `aws service-quotas get-service-quota --service-code vpc --quota-code L-FE5A380F` (NAT gateways per AZ); with the matching `get-aws-default-service-quota` fallback only on NoSuchResourceException. File read terraform.tfvars for the planned CIDR. No create/modify/delete; no terraform plan/apply; tfplan-dev-lockfile unchanged.
+    - Expected evidence: per item: existing count/CIDRs, applicable quota value + source (applied vs default), expected-after-bootstrap, headroom, and any AZ availability limitation; CIDR overlap result for 10.0.0.0/16.
+    - PASS (per item): no CIDR overlap (item 1); current + planned <= applicable quota (items 2-4); combined fit (item 5).
+    - FAIL (per item): CIDR overlap with 10.0.0.0/16 (item 1, Blocker/Blocker), or current + planned > quota (Blocker/Blocker, apply would fail); proposal AWAITING_APPROVAL.
+    - UNVERIFIED (per item): a quota value or resource list cannot be read (access denied / code not resolvable), or NAT AZ cannot be resolved; state which and why.
+    - BLOCKED: AWS read access unavailable (2.2).
+    - _Requirements: 6.1, 6.2, 2.12 (check ID CHK-CAP-002)_
+  - [x] 23.3 CHK-CAP-003 Resource-name conflicts: IAM policy, CloudWatch dashboard, CloudFront identifiers
+    - Prerequisites: 23.2 (order)
+    - Description: user authorized (2026-11-02) one grouped read-only name-conflict check (profile charltonecs, region us-east-1). First resolve the EXACT planned names from the saved plan tfplan-dev-lockfile (via in-memory PLANQ `terraform show -json tfplan-dev-lockfile | jq <read-only filter>`, cwd ecs-terraform/envs/dev) and module sources: all aws_iam_policy name + path (customer-managed policies only; AWS-managed attachments excluded), the aws_cloudwatch_dashboard dashboard_name, and CloudFront identifiers that must be unique at create time (the aws_cloudfront_origin_access_control name, any aws_cloudfront_response_headers_policy / cache_policy / origin_request_policy custom names, and note the distribution itself has no user-unique name). Then check whether a conflicting resource already exists.
+    - Approved read-only commands (argv arrays; no pipes/redirects/chaining; each adds --profile charltonecs --region us-east-1 except global services as noted): for each planned IAM policy, `aws iam list-policies --scope Local` (then match by name in output; counts/name-match only, no account ARNs printed) OR `aws iam get-policy --policy-arn arn:aws:iam::<ACCOUNT>:policy/<path><name>` only if the account id is already known from 2.2 (prefer list-policies to avoid composing ARNs); `aws cloudwatch get-dashboard --dashboard-name <name>` (NoSuchEntity/ResourceNotFound => free); `aws cloudfront list-origin-access-controls` and `aws cloudfront list-response-headers-policies --type custom` / `list-cache-policies --type custom` / `list-origin-request-policies --type custom` as applicable (CloudFront is global; region flag harmless). Match by exact planned name only; print name-existence booleans and counts, never ARNs/ids/account ids. No create/modify/delete; no terraform plan/apply; tfplan-dev-lockfile unchanged.
+    - Expected evidence: per planned resource: exact planned name (safe to print the configured name string), whether a conflicting existing resource with that name was found, and the command used.
+    - PASS (per resource): no existing resource with the planned name.
+    - FAIL (per resource): an existing resource already uses the planned name: Finding Blocker/Blocker for Bootstrap (apply would fail with EntityAlreadyExists / already exists); proposal rename or import (AWAITING_APPROVAL).
+    - UNVERIFIED (per resource): the planned name cannot be resolved from the plan, or the lookup is denied/errors; state which and why.
+    - BLOCKED: AWS read access unavailable (2.2) or plan unreadable.
+    - _Requirements: 7.4, 11.1, 8.1, 2.12 (check ID CHK-CAP-003)_
+  - [x] 23.4 CHK-CAP-004 S3 frontend bucket availability (FND-EDG-005)
+    - Prerequisites: 23.3 (order)
+    - Description: user authorized (2026-11-02) one read-only availability check for the planned frontend bucket eruditiontx-app-ecs-dev-frontend (profile charltonecs). Determine (1) whether the bucket already exists IN this account (s3api list-buckets, exact name match), and (2) its current global-name availability (s3api head-bucket), distinguishing 404 Not Found (name currently free) from 403 Forbidden (name taken by another account or access denied) and other errors. This extends the 20.1 preflight head-bucket observation with the account-ownership dimension; note the residual race condition (global S3 names are not reserved until apply creates the bucket).
+    - Approved read-only commands (argv arrays; no pipes/redirects/chaining): `aws s3api list-buckets --profile charltonecs` (list names; match the exact planned name; bucket is global, no region flag needed); `aws s3api head-bucket --bucket eruditiontx-app-ecs-dev-frontend --profile charltonecs` (interpret HTTP status: 404 = free, 403 = taken-by-other/forbidden, 200 = exists/owned-or-accessible). No create, no reserve, no put, no mutate; no terraform plan/apply; tfplan-dev-lockfile unchanged.
+    - Expected evidence: whether the exact name appears in this account's bucket list (boolean), the head-bucket status class (404/403/200/other), and a statement of the remaining name-race risk.
+    - PASS: name not owned in this account AND head-bucket 404 (name currently free): apply is expected to succeed, subject to the race.
+    - FAIL: head-bucket 403 with the name owned by another account (BucketAlreadyExists risk at apply): Finding Blocker/Blocker for Bootstrap; proposal add an account id/random suffix to the bucket name (AWAITING_APPROVAL). If the name already exists in THIS account, record it (Informational: apply may conflict or be an existing resource not in Terraform state).
+    - UNVERIFIED: head-bucket returns 403 that cannot be attributed to ownership vs permissions, or list-buckets denied; state which and why; the race condition always remains UNVERIFIED until apply.
+    - BLOCKED: AWS read access unavailable (2.2).
+    - _Requirements: 8.1, 2.12 (check ID CHK-CAP-004; Finding FND-EDG-005)_
+
+## Run record (running log, no secrets)
+
+### Accepted task results
+
+- 2.1 PASS (79 files read, 2026-11-02T20:16:24Z).
+- 2.2 PASS (sts get-caller-identity ok, account ****9106, 20:18:34Z).
+- 2.3 PASS(start): 49-file SHA-256 baseline and state-object fingerprint captured 20:20:00Z; compared at 14.1. The baseline lives in the task 2.3 output and must not change.
+- 3.1 PASS; 3.2 PASS; 3.3 PASS.
+- 3.4 PASS (51 add/0 change/0 destroy; 54 resource_changes = 51 create + 2 no-op + 1 read).
+- 3.5 PASS.
+- 3.6 FAIL (expected: JSON exports 78-79 min older than tfplan-dev, Finding Risk/Risk).
+- 3.7 PASS (Informational: uncommitted cloudfront.tf diff only adds default_root_object, reflected in plan; /v1/* already committed).
+- 3.8 PASS.
+- 4.1 PASS against approved two-resource ECR baseline (literal zero-resource test not met, preserved).
+- 4.2 PASS (all sensitive patterns ignored, none tracked; Risk findings below).
+- 4.3 PASS (backend config consistent with initialized metadata).
+- 4.4 PASS (four local state files inspected structurally: two 181-byte empty shells, bootstrap state 7819 bytes serial 69 with 5 resources, bootstrap backup).
+- 4.5 PARTIAL (2026-11-02T21:05:42Z): bucket default encryption CONFIRMED_ENABLED (AES256, no KMS key, bucket key false); state object encryption CONFIRMED_ENABLED (AES256; reused from task 2.3, not re-queried); versioning CONFIRMED_ENABLED (Status Enabled); state locking UNVERIFIED (use_lockfile = true only in backend.config; initialized metadata has use_lockfile null = NOT_STATED, not proof of disabled; no DynamoDB lock table defined; no approved non-mutating way to observe a live .tflock). Recorded overall status for CHK-TFP-015: BLOCKED for the locking sub-check (missing: approved non-mutating locking observation), PASS for encryption/versioning sub-checks.
+- 4.6 PASS (backend reconfiguration, user-approved, 2026-11-02 21:31-21:37Z, executed under staged task 4.6): ran once from ecs-terraform/envs/dev: AWS_PROFILE=charltonecs AWS_REGION=us-east-1 terraform init -reconfigure -input=false -lockfile=readonly -backend-config=../../backend.config -backend-config=profile=charltonecs; exit 0; no migration prompt, no interactive input, no lock-file change, no provider download, no warnings. Initialized metadata now records type s3, key ecs-dev/terraform.tfstate, region us-east-1, profile charltonecs, encrypt true, use_lockfile true, dynamodb_table unset, no credential keys set (metadata hash changed 97c7c8b5..0078 -> 755b5904..11e8). Remote state object unchanged (VersionId, ETag, LastModified 2026-10-31T15:19:48Z, ContentLength 12596 all equal to the task 2.3 baseline). 49-file SHA-256 baseline unchanged (49/49, also before init). .terraform.lock.hcl unchanged (hash d07f2559..7f20; git clean). terraform validate exit 0. Only git change remains the pre-existing modified modules/edge/cloudfront.tf. Locking status: CONFIGURED_AND_EFFECTIVE_IN_METADATA; IAM permission for the .tflock object and live lock behavior UNVERIFIED (no lock taken, none tested). Encryption CONFIRMED_ENABLED.
+- 4.7 PASS (2026-11-02T21:45Z, also hosted the read-only fresh-plan verification): tfplan-dev, tfplan-dev-lockfile and both JSON exports match the tfplan-* ignore pattern and are untracked; no tfplan* file tracked. Fresh plan integrity (read-only evidence): user-generated `ecs-terraform/envs/dev/tfplan-dev-lockfile` exists (81832 bytes, mtime 2026-11-02 21:42:56Z, after the 21:37Z init); original tfplan-dev unchanged (81810 bytes, 17:21:58Z); both plans: Terraform 1.16.4, format 1.2, errored false, applyable true, complete true, 54 resource_changes = 51 create + 2 no-op (module.backend.aws_ecr_repository.app, module.backend.aws_ecr_lifecycle_policy.app) + 1 read (module.edge.data.aws_iam_policy_document.frontend), 0 update/delete/replace; sorted (address, action) sets IDENTICAL between the two plans; remote state object fingerprint unchanged (VersionId, ETag, LastModified, ContentLength equal to baseline); backend metadata unchanged since init (encrypt true, use_lockfile true; hash 755b5904..11e8); lock file unchanged; 7 envs/dev source hashes equal baseline and no source file newer than the init (mtime check; module hashes not re-compared); no errored.tfstate/crash.log/*.tflock in envs/dev. UNVERIFIED (no execution evidence available to the validator): the plan command exit code, whether the S3 state lock was acquired and released, and any warnings printed by the plan run. Proposed to resolve: user pastes the redacted tail of the plan output (exit status, any state-lock lines, warnings); optional read-only `aws s3api head-object` on key ecs-dev/terraform.tfstate.tflock to detect a leftover stale lock (NOT approved, NOT run).
+- 9.4-9.7 ECR verification, authoritative plan tfplan-dev-lockfile (2026-11-02 21:56-21:58Z): 9.4 PASS: planned_repo_name eruditiontx-app-ecs-dev-app (= ${app_name}-${environment}-app, exact case), managed_by_terraform true (terraform state list: aws_ecr_repository.app and aws_ecr_lifecycle_policy.app), plan_action none (no-op; image_tag_mutability IMMUTABLE, scan_on_push true, AES256); tfvars image_tag sha-a454df4; task definition image = repository_url:image_tag. 9.5 PASS: describe-repositories/describe-images ok (access ok): repository exists (created 2026-10-31T10:19:46-05:00, IMMUTABLE, scan on push true, AES256 no KMS); tag sha-a454df4 found, digest sha256:846ae369350184eecf93588a88511d9f0d1e84f5ff66077e2eaee08def88bba1, pushed 2026-10-31T10:43:06-05:00, 102169582 bytes, OCI image index manifest; no scan results returned (no scan started); no pull time recorded. 9.6 PASS: decision-table row 2 (exists in AWS and in state, plan none); creation conflict NO; Informational/Informational. 9.7 PASS (not applicable, trigger condition absent: planned repository exists; no other repositories queried). Observations (Informational): OCI image index may be multi-platform/attestation, Fargate platform/architecture compatibility NOT verified (flag for ECS task checks); stale comment in modules/backend/ecr.tf says DEV can stay MUTABLE but tfvars/plan say IMMUTABLE; image CONTENT (Landing_Page_Image) not assessed - Known_Limitation Informational Bootstrap / Blocker Application unchanged. FND-STATE-LOCK remains an unresolved Risk; live locking NOT verified (terraform state list printed no lock message, which proves nothing).
+- 6.1-6.6 Networking verification, authoritative plan tfplan-dev-lockfile (2026-11-02 22:03-22:06Z; 6.2 recorded only the date, run concurrently with 6.1/6.3-6.5 at about 22:03Z): all PASS. 6.1: 1 VPC 10.0.0.0/16 (dns support+hostnames true), 2 public (10.0.1.0/24 us-east-1a, 10.0.3.0/24 us-east-1b) + 2 private (10.0.2.0/24 us-east-1a, 10.0.4.0/24 us-east-1b) subnets, 1 IGW, 2 route tables, 4 associations pairing public/private correctly; CIDRs equal tfvars; all inside the VPC, no overlaps, 251 usable per subnet. 6.2: 1 EIP + 1 NAT (public1, us-east-1a, depends_on IGW), private 0.0.0.0/0 -> NAT via aws_route.private_nat[0], public 0.0.0.0/0 -> IGW. 6.3: 1 Gateway S3 endpoint com.amazonaws.us-east-1.s3 (service name from var.aws_region), associated with both route tables, default policy. 6.4: private1 us-east-1a, private2 us-east-1b (distinct), publics in a/b, symmetric; AZ names resolved from the plan, no AWS call needed. 6.5: 0 interface endpoints; ECR API/registry, Secrets Manager, CloudWatch Logs, STS and MongoDB Atlas depend on the NAT + private default route (accepted dependency; only S3/ECR layer traffic uses the gateway endpoint); ECS SG egress 443 and 27017 to 0.0.0.0/0 noted for task 7. 6.6: private subnets map_public_ip false, private route table has no IGW route, no private subnet on the public route table; ECS/ALB wired to private_subnet_ids (main.tf:56, ecs.tf:113, alb.tf:119), assign_public_ip false (ecs.tf:115), ALB internal (alb.tf:117); dependency chain network -> backend -> edge, no cycles, no blockers visible without AWS calls.
+- 7.1-7.9 Security groups and IAM, authoritative plan tfplan-dev-lockfile (2026-11-02 22:11-22:14Z): all PASS. 7.1: ALB SG (eruditiontx-app-ecs-dev-alb-sg): exactly one ingress, tcp 80 from the CloudFront origin-facing managed prefix list (com.amazonaws.global.cloudfront.origin-facing); egress only to the ECS SG tcp 3000; ALB internal; listener HTTP 80. AWS docs (CloudFront VPC origins) support Option 1 (this prefix list) and Option 2 (service-managed SG CloudFront-VPCOrigins-Service-SG, only after the VPC origin exists, stricter: own distributions only). 7.2: ECS SG: exactly one ingress, tcp 3000 from the ALB SG; egress tcp 443 and tcp 27017 to 0.0.0.0/0; assign_public_ip false, private subnets, only load balancer is the internal ALB target group; ports consistent 3000 (tfvars, target group, ECS ingress, ALB egress). 7.3: 0.0.0.0/0 occurrences: 2 SG egress rules (443, 27017) justified (NAT-only egress; Atlas M0 has no fixed ranges, control is the Atlas IP access list on the NAT EIP) plus 2 routes; no ingress 0.0.0.0/0, no ::/0, no NACLs, no all-protocol rules. 7.4: execution role = AmazonECSTaskExecutionRolePolicy + one custom policy: secretsmanager:GetSecretValue only on the single secret ARN (eruditiontx-app/ecs-dev/mongodb-uri, no wildcard, no kms, no PassRole). 7.5: task role has NO policies or attachments (least privilege; ECS Exec disabled). 7.6: both roles trust only ecs-tasks.amazonaws.com with aws:SourceAccount (data.aws_caller_identity) and aws:SourceArn arn:aws:ecs:*:<acct>:* (iam.tf:24-49). 7.7: zero IAM users/access keys/groups/instance profiles in plan and source; IAM resources: 2 roles, 1 policy, 2 attachments. 7.8: distinct() at modules/backend/locals.tf:31; app_secret_arn == staff_admin_secret_arn; policy has exactly one Resource entry; variables sensitive (variables.tf:133,140). 7.9: describe-secret (approved metadata call, no value): KmsKeyId null -> AWS-managed key aws/secretsmanager, no kms:Decrypt needed; secret exists, not scheduled for deletion, rotation disabled, no replicas (observation; formal existence check is 10.1).
+- Consolidated final readiness review (2026-11-02 22:18-22:20Z, authoritative plan tfplan-dev-lockfile; executed under staged tasks 8.1, 9.1, 13.1 and 5.1): 8.1-8.9 PASS: bucket public-access-block all four true, AES256, force_destroy false; bucket policy single s3:GetObject for cloudfront.amazonaws.com with AWS:SourceArn = distribution ARN; OAC always/sigv4/s3, regional bucket domain, no OAI; default_root_object index.html; ordered behaviors /api/* then /v1/* to VPC origin, Managed-CachingDisabled resolved by data source name, all 7 methods, redirect-to-https, origin request policy Managed-AllViewerExceptHostHeader; default S3 behavior redirect-to-https GET/HEAD/OPTIONS CachingOptimized; VPC origin endpoint = module.backend.alb_arn, http-only port 80; default viewer certificate (minimum TLSv1), no ACM/Route 53; WAF off; cloudfront.tf diff reflected in plan. 9.1-9.3, 9.8-9.10 PASS: FARGATE launch type, private subnets, assign_public_ip false, desired_count 0, autoscaling min 0/max 2 with CPU target tracking 60 (cannot scale out from zero by itself), internal ALB (names 27/26 chars), HTTP:80 listener -> IP target group port 3000, health check path / interval 30, ports consistent 3000, secrets MONGODB_URL and STAFF_ADMIN_MONGO_URL via valueFrom, DB_NAME/STAFF_ADMIN_DB_NAME env, awslogs group eruditiontx-app-ecs-dev-app, cpu 256 / memory 512; FND-ECS-DRIFT confirmed (no ignore_changes for desired_count). 9.11 plan side only: runtime_platform unset (X86_64/LINUX default); image-manifest side BLOCKED (ecr batch-get-image not approved); task 9.11 left open. 13.1 PASS (prices retrieved 2026-11-02 via approved pricing API / AWS VPC pricing page): fixed subtotal 56.93 USD/month (NAT hours 32.85, ALB hours 16.43, public IPv4 3.65, dashboard 3.00, 6 alarms 0.60, Secrets Manager secret 0.40), usage subtotal 6.01 (assumed quantities: NAT 1 GB 0.05, ALB 1 LCU 5.84, logs, CloudFront requests, S3, ECR, Secrets API), total 62.93 INCOMPLETE; UNKNOWN (excluded): CloudFront data transfer out, VPC origin, OAC, ECS cluster/VPC/subnets/route tables/IGW/SGs/IAM/target group/autoscaling charge confirmation; Fargate per task-hour about 0.0123 USD (0.25 vCPU/0.5 GB Linux X86_64) excluded at desired_count 0. 5.1 PASS (no literal account IDs or resource IDs in module/envs/dev code). Apply-critical review: no certain blockers; conditional/UNVERIFIED: S3 bucket name eruditiontx-app-ecs-dev-frontend has no account/random suffix (global uniqueness unverified), service-linked roles incl. CloudFront VPC Origins and iam:CreateServiceLinkedRole permission, same-name pre-existing resources outside state, EIP/VPC/NAT/IGW quotas, state-lock (.tflock) permission, ALB-active timing for the VPC origin. Integrity recheck: remote state object fingerprint, tfplan-dev and tfplan-dev-lockfile unchanged; no source newer than tfplan-dev-lockfile; 7 envs/dev hashes and 5 module hashes equal baseline; git shows only the modified cloudfront.tf. RECOMMENDATION: GO WITH CONDITIONS for infrastructure bootstrap (desired_count 0) using tfplan-dev-lockfile; items needing user approval listed in the final readiness message.
+- 20.1 CHK-PRE-001 PASS (2026-11-02 22:33-22:35Z, user-approved read-only preflight; no conflict, no ambiguous response in approved lookups): head-bucket eruditiontx-app-ecs-dev-frontend = 404 (name appears free; race possible until apply); planned names NOT FOUND (no conflict): IAM roles eruditiontx-app-ecs-dev-ecs-execution and -ecs-task, log group eruditiontx-app-ecs-dev-app, ECS cluster eruditiontx-app-ecs-dev-cluster, ALB -alb, target group -tg, security groups -alb-sg and -ecs-sg, the six alarms (prefix eruditiontx-app-ecs-dev), OAC -frontend-oac; service-linked roles: AWSServiceRoleForECS FOUND, AWSServiceRoleForElasticLoadBalancing FOUND, AWSServiceRoleForApplicationAutoScaling_ECSService ABSENT, AWSServiceRoleForCloudFrontVPCOrigin (singular, per AWS docs; plural cross-check also absent) ABSENT -> AWS creates them on first use if the caller has iam:CreateServiceLinkedRole (permission UNVERIFIED, no simulation run); EC2: 0 VPCs (no overlap with 10.0.0.0/16), 0 Elastic IPs, 0 NAT gateways (pending/available); defaults (5 VPC/EIP/IGW, 5 NAT per AZ) are documented, not verified; UNVERIFIED (no approved lookup): IGW usage, IAM policy name, dashboard name, CloudFront VPC origin/distribution names. Item 1 (state locking): no command run; evidence only from existing plan artifacts (plan exit code and -lock=false usage unconfirmed by the user); live locking NOT verified. Item 4 (FND-SEC-HIST-001) retained as required follow-up; nothing extracted/rewritten/rotated. Item 5: git shows only modules/edge/cloudfront.tf modified (diff: +2/-1: `enabled = true` realigned and `default_root_object = "index.html"` added); proposed commit message `feat(terraform): set CloudFront default_root_object to index.html`; nothing staged or committed; .kiro/ is untracked and must not be committed. Confirmed blockers: none. Unresolved risks: iam:CreateServiceLinkedRole for the two absent SLRs (apply would fail at the autoscaling policy or CloudFront VPC origin), IGW quota usage, unverified name conflicts (policy, dashboard, CloudFront), bucket-name race, lock permission/behavior.
+- FND-STATE-LOCK resolved to PASS (inferred) on 2026-11-02 by user attestation; see Open findings.
+- 21.1 CHK-PRE-002 PASS (2026-11-02 22:42-22:44Z, read-only iam simulate-principal-policy, nothing created): iam:CreateServiceLinkedRole = allowed for AWSServiceRoleForApplicationAutoScaling_ECSService (service ecs.application-autoscaling.amazonaws.com) and AWSServiceRoleForCloudFrontVPCOrigin (service vpcorigin.cloudfront.amazonaws.com); caller is an IAM user (masked) whose access matched the AdministratorAccess policy; no permissions boundary or Organizations detail returned; limits: simulation excludes service control policies and resource-based policies (an SCP could still deny at apply); AWS creates both SLRs on first use at apply.
+- 21.2 PASS (user-approved single-file commit, 2026-11-02 22:43-22:44Z): commit 5280ada on main `feat(terraform): set CloudFront default_root_object to index.html`, exactly ecs-terraform/modules/edge/cloudfront.tf (+2/-1); not pushed; file sha256 6bfde3e5...cdb4 and mtime unchanged (baseline unaffected); working tree afterwards only untracked .kiro/ ; saved plan remains valid (content unchanged).
+
+### Open findings (all AWAITING_APPROVAL, no action taken)
+
+- FND-SEC-HIST-001 Low Risk/Informational: commit dacd47e8b902e20c89756c2130bb47d7b0e6032b (2026-09-18, subject 'bootstrap') added binary plans ecs-terraform/bootstrap/tfplan (5134 bytes) and ecs-terraform/tfplan (25924 bytes). The commit is on main and origin/main; files are absent from HEAD but remain in history. Repo confirmed PUBLIC; both plan blobs in dacd47e scanned in memory (22.2): 0 credential-class hits across zip members and raw bytes; binary tfplan members were weakly covered; low-severity identifiers (account IDs/ARNs) exposed in public history; user accepted 22.2 and 22.3 results; 22.4 inspected variables and tfstate-prev (0 credential-shaped indicators, unvalidated because the self-test failed) and could not verify sensitive-path metadata (UNVERIFIED); finding remains OPEN; no rotation/history rewrite/push done. 22.3 update: msgpack-aware decode covered 94.1% (bootstrap) and 95.7% (root) of the binary tfplan members with 0 credential-class hits; 7 credential-named keys are present but null/empty in the root plan; remaining limitations as listed in the 22.3 Run record entry (variable values not individually inspected, unlisted key names, undecoded ~4-6%); residual risk low. User decision (2026-11-02): 22.4 accepted as UNVERIFIED; historical-plan investigation stopped. Status OPEN as a documented residual risk (Low Risk / Informational). No credential patterns were detected in 22.2, 22.3 or 22.4, but the final 22.4 self-test failed and sensitive-path metadata remains unverified; the historical plans are NOT confirmed secret-free. No further binary decoding or repeat scans are approved. No rotation, history rewrite, push, AWS change or terraform apply performed.
+- F-4.2-02 Risk/Risk: .gitignore lacks id_rsa*, *secret*.json, credentials.json patterns (no such file present; .gitignore not changed).
+- Stale JSON exports (3.6) Risk/Risk: untrusted, not deleted.
+- Remote-state baseline Informational/Informational: exactly two ECR resources.
+- FND-STATE-LOCK PASS (inferred, user-attested, 2026-11-02): the user confirmed running terraform plan with -lock=true and -lock-timeout=60s (no -lock=false) to generate tfplan-dev-lockfile after the init that set use_lockfile = true; a saved plan exists, applyable and complete. Lock acquisition and release are INFERRED from that successful locked plan, not directly observed by the validator (no .tflock object seen; exit code and output not seen by the validator). Severity Informational/Informational. Residual: the apply will take the same lock; any lock failure at apply stops before resources are created. FND-STATE-ENC and FND-STATE-VER Informational/Informational.
+- DECISION (approved by user): tfplan-dev-lockfile is the authoritative saved plan from task 9.4 onward; tfplan-dev preserved.
+- Local empty state shells (root, modules) Informational/Informational: deletion only a proposal, never performed.
+- Bootstrap local state is the only copy of bootstrap state (ignored, untracked): Informational note for backup/ownership review.
+- Networking findings (Bootstrap/Application): single NAT in us-east-1a (cross-AZ egress for us-east-1b, sole egress path for ECR API, Secrets Manager, Logs, STS, Atlas) Informational/Risk; Atlas allowlist needs the NAT EIP after apply (CHK-ATL-004, NOT TESTED) Informational/Risk; NAT cost Informational/Informational (see task 13.1); ECS service has no explicit ordering on the private NAT route (desired_count = 0 so no task starts at apply) Informational/Risk, optional proposal depends_on (AWAITING_APPROVAL); AZs chosen by names[0]/names[1] not pinned Informational/Informational; AZ zone-type filter not confirmed Informational/Informational; default S3 endpoint policy full-access Informational/Informational; UNVERIFIED capacity/overlap: existing VPC CIDR conflicts, VPC/EIP/NAT/IGW quotas and EIP availability (VPCs per region 5, EIPs 5, NAT per AZ 5, IGWs 5 are defaults, current usage not queried) Risk/Risk until the read-only calls ec2 describe-vpcs, ec2 describe-addresses, ec2 describe-nat-gateways (allowlisted but NOT approved) and service-quotas get-service-quota (not on the allowlist) are approved. IGW quota resolved PASS (23.1, 2026-11-02): current 0 IGWs, applied quota 5, expected 1 after bootstrap, headroom 4; the remaining UNVERIFIED capacity items (existing VPC CIDR conflicts, VPC/EIP/NAT quotas and EIP availability) still require ec2 describe-vpcs, ec2 describe-addresses, ec2 describe-nat-gateways and service-quotas for those codes if the user approves. Remaining capacity items resolved PASS (23.2, 2026-11-02): 0 existing VPCs (no CIDR overlap with 10.0.0.0/16), VPC quota 5 / EIP quota 5 / NAT-per-AZ quota 5 (all applied), planned 1 VPC + 1 NAT + 1 EIP each leave headroom 4; capacity/overlap now resolved Informational/Informational (the earlier Risk/Risk UNVERIFIED status is superseded). Note: 6.1 F3 (public route table IGW reference) is resolved by 6.6 (configuration reference aws_internet_gateway.main.id).
+- SG/IAM findings (Bootstrap/Application): all Informational/Informational except: kms (conditional on 7.9) resolved - AWS-managed key, no risk; optional hardening proposals AWAITING_APPROVAL: use the service-managed SG CloudFront-VPCOrigins-Service-SG after the VPC origin exists (Informational), narrow the trust-policy aws:SourceArn region/resource (Informational), optionally add VPC endpoints later to narrow 443 egress (Informational); documentation drift: secrets.tf header (lines 9-20), locals.tf:25-30 and ecs.tf:89-91 comments say DEV default has zero secret resources and one ARN, but tfvars/plan use two secret variables with distinct() and a policy (Informational); single shared secret and Atlas user for both databases (no credential separation) Informational; managed-policy wildcard resources are AWS-defined Informational; NACLs not verified (default NACL assumed) Informational; application readiness note: SG, target group and listener ports are set for the landing page (container port 3000, health path /); LMS_API port/health changes require coordinated SG/target-group updates (Known_Limitation, Application Blocker, unchanged). No Bootstrap blockers from SG/IAM.
+- Consolidated review findings (Bootstrap/Application): FND-EDG-001 empty frontend bucket returns 403 until a frontend is uploaded Informational/Blocker; FND-EDG-002 /health and /docs served by S3 Informational/Risk; FND-EDG-003 HTTP-only VPC origin hop Informational/Informational (DEV); FND-EDG-004 default certificate minimum TLSv1 Informational/Risk; FND-EDG-005 S3 bucket name lacks account/random suffix, apply could fail with BucketAlreadyExists Risk/Risk — availability checked 23.4 (2026-11-02): name not owned in this account, head-bucket 404 (currently free); apply expected to succeed, but the global-name race remains (not reserved until apply), so FND-EDG-005 stays a Risk/Risk residual until apply; optional hardening: add account-id/random suffix to the bucket name (AWAITING_APPROVAL); FND-EDG-006 PriceClass_All, no access logs, compress false Informational/Informational; FND-ECS-DRIFT Risk/Risk; zero-task service cannot scale out from zero Informational/Risk; both Mongo URL env vars use the same secret ARN Informational/Risk; no deployment circuit breaker, no health_check_grace_period or container healthCheck Informational/Risk; image architecture verified PASS (9.11 image side, 2026-11-02): OCI index includes linux/amd64 matching the task definition default X86_64/LINUX, digest matches recorded; resolved, Informational/Informational; writable root filesystem/default user, ALB deletion protection and access logs off Informational/Informational; FND-COST 62.93 USD/month idle (total incomplete) Risk/Risk; unpriced CloudFront data transfer/VPC origin/OAC Informational/Risk; apply-critical UNVERIFIED items Risk/Risk (conditional Blockers if they fail at apply, not safety risks); uncommitted modules/edge/cloudfront.tf change reflected in plan Informational (recommend committing before CI).
+- Operator credential note (Informational/Informational for bootstrap): the charltonecs IAM user has AdministratorAccess (from the simulation); acceptable for a DEV operator but broader than least privilege; do not reuse for Jenkins (steering: no AdministratorAccess for CI/CD). Remaining before apply: unverified SCP effect on SLR creation (only visible at apply), IGW quota usage, IAM policy/dashboard/CloudFront name conflicts resolved PASS (23.3, 2026-11-02): no existing resource uses the planned IAM policy, dashboard or OAC names, bucket-name race, FND-SEC-HIST-001 follow-up; none is a confirmed blocker.
+
+### Process deviations
+
+- PD-001 (minor, task 4.3): the executor used a shell pipe (`git ls-files | grep tfplan`) outside the single approved pipeline; read-only, wrote nothing; recorded for transparency; not to be repeated (task 4.4 used no pipes).
+- PD-002 (minor, task 4.4): the executor ran two `git ls-files` commands with an unquoted shell glob that expanded to a root file (ineffective search, read-only, no impact) and one command whose output was very large and truncated; later calls used quoted `:(glob)` pathspecs; no files were modified.
+- PD-003: none in task 4.5 (no pipes, only the approved get-bucket-encryption and get-bucket-versioning calls).
+- PD-004: none in the backend reconfiguration (single approved init command, no pipes; the command also passed -backend-config=profile=charltonecs as proposed).
+- PD-005 (minor, task 4.7 verification): the executor used extra shell pipes beyond the single approved terraform show | jq pipeline (`| sort | sha256sum`, `| sort | sed` for masking, `sed` bucket masking, `sort | head`, `wc -l`); all read-only, no writes, no values printed; recorded for transparency; not to be repeated.
+- PD-006 (minor, task 9.4): the executor ran the plan query with an extra pipe stage (`| jq -c .`) and a trailing `; true` beyond the single approved pipeline `terraform show -json tfplan-dev-lockfile | jq <filter>`; read-only, nothing written; the `; true` would mask the plan command exit status; not repeated in 9.5-9.7 (no pipes used); the task 9.4 evidence is still valid because the output was produced and the state list ran separately. Also note the 9.6 summary mislabeled the source task for describe-repositories (it was 9.5, not 9.4).
+- PD-007 (minor, task 6.6): the executor ran one probe with an extra pipe stage (`| head -c 100`) beyond the single approved terraform show | jq stage; read-only, output discarded, nothing written. Also in 6.1 the executor ran a plain `date -u` (not on the approved list but harmless); in 6.2 a jq syntax error required a re-run; no impact.
+- PD-008 (minor, task 13.1): the executor ran one pricing call ending in `| head -c 0` (an extra pipe; read-only, printed nothing); later pricing calls had no pipes. Also in 5.1 `find` was denied by permissions and replaced by `ls -t`; the 49 paths were not individually mtime-checked in that run (the 3.7 follow-up check already covered them).
+- 22.1 CHK-SEC-001 PASS: origin is https github.com charltonmc2024/ecs-terraform-cicd, no credentials in URL; gh repo view: PUBLIC (not fork, 0 forks, pushedAt 2026-10-29T19:37:12Z). Commit dacd47e8b902e20c89756c2130bb47d7b0e6032b (2026-09-18, "bootstrap") added ecs-terraform/bootstrap/tfplan (blob dd1097bcea960cf4d6a26528d7df69e65c4faade, 5134 B) and ecs-terraform/tfplan (blob b804dfb24a8ed412aae486dc326a621a9d61d2d1, 25924 B). Commit 3f22a83 ("04-edge module", 2026-09-29) is the only other commit touching the paths (inferred removal, not diffed). Both paths absent at HEAD; main and origin/main contain dacd47e; no tags; 12 commits since.
+- 22.2 CHK-SEC-002 PASS with coverage gap (UNVERIFIED for binary region): in-memory python3 stdlib scan (git cat-file blob into memory, zipfile, re; no files written, no pipes, no AWS calls); synthetic self-test PASS (15 detectors fired, null/empty password negative did not). Both blobs parse as zip. Bootstrap tfplan blob members: tfplan, tfstate, tfstate-prev, tfconfig/m-/main.tf, tfconfig/modules.json, .terraform.lock.hcl. ecs-terraform/tfplan blob: tfplan (36825 B), tfstate, tfstate-prev, .terraform.lock.hcl, modules.json, 29 tfconfig .tf files. Credential-class hits (AWS key id, AWS secret key, PEM private key, password assignment, MongoDB URI with/without credentials, GitHub/Slack tokens, Bearer, generic api_key/token/secret, JWT, secret_string, Secrets Manager ARN): 0 in every member and raw bytes of both blobs. Informational only: bootstrap tfplan member 4 twelve-digit numbers, tfstate member 1 sensitive marker/3 twelve-digit numbers/1 ARN; ecs-terraform/tfplan member 45 twelve-digit numbers and 1 ARN, iam_ecs.tf 1 ARN; counts only, no values. Not reliably inspected: the tfplan member in both blobs is binary (likely msgpack-encoded values), so assignment-style patterns (password=, secret_string, api_key=) and sensitive-marker counts are weak evidence there; plain-text-style patterns would still match; no msgpack-aware decode was done (outside approved method); no gzip magic or long base64 runs found, no nested decoding. FND-SEC-HIST-001 updated: no credential-class indicators found; plan files remain in public history (account IDs and resource identifiers are likely exposed, low severity); residual risk from the undecoded binary region; no rotation, history rewrite, push, AWS change or terraform apply performed; tfplan-dev-lockfile unchanged. Follow-up: msgpack-aware decode approved and completed under 22.3 (user accepted 22.2 and 22.3 results).
+- 22.3 CHK-SEC-003 PASS with stated limitations (no values printed): in-memory python3 stdlib inline protobuf-wire walker + strict msgpack decoder; no installs, no disk writes, no network, no pipes; synthetic self-test PASS. bootstrap/tfplan (dd1097b): tfplan member 3,493 B, walk OK, 82 payloads visited, 14 decoded as msgpack, coverage 94.1% (207 B undecoded framing/varints/enums), 0 variables. ecs-terraform/tfplan (b804dfb): tfplan member 36,825 B, walk OK, 651 payloads, 105 msgpack, coverage 95.7% (1,592 B undecoded), 13 variables (count only). Credential-class categories all 0 in both blobs and both tfstate members: credential key with non-empty value, AWS key id, 40-char secret next to secret-like key, PEM, mongodb/mongodb+srv URI (with/without userinfo), URI with embedded credentials, GitHub/Slack tokens, JWT, Bearer. Informational: credential-named keys present but null/empty: root plan 7 (resource_changes msgpack 4, other_top 3), bootstrap 0; 12-digit numbers: bootstrap plan 4, tfstate 3, root plan 45; ARN markers: bootstrap tfstate 1, root plan 1. Limitations: field-number to location mapping from memory of tfplan.proto (unverified); only tfplan and tfstate members decoded (tfconfig .tf members were text-scanned in 22.2; tfstate-prev not msgpack-decoded); sensitive-path metadata not read; fixed credential key-name list (unlisted key names missed); 40-char secret check only near secret-like keys; encoded/encrypted/hashed/split secrets undetectable; msgpack ext values skipped; variable names/values not inspected (13 variables in root plan unexamined individually); 12-digit and ARN counts rough; ~4-6% of bytes undecoded.
+- 22.4 CHK-SEC-004 UNVERIFIED (partial; execution complete, validation incomplete; no values printed): in-memory python3 stdlib, git cat-file blob + zipfile, no disk writes, no network, no pipes, no installs. Synthetic self-test FAILED (probable cause: bug in the synthetic sensitive-path fixture, which nested the protobuf Path one level too deep; the failing assertion was not identified and the test was not re-run), so results (a) and (b) are unvalidated indicators only. (a) Variables: root plan 13 variables all decoded (9 string, 4 number; none empty or null); bootstrap plan 0 variables; 0 credential-shaped pattern matches (AKIA/ASIA, 40-char secret, PEM, mongodb URI, userinfo URI, JWT, GitHub/Slack, Bearer, high-entropy); 0 variable names matched credential keywords; the plan protobuf has no variable-sensitivity field. (b) tfstate-prev: both blobs 145-byte member parses as JSON, 0 resources, 0 outputs, 0 sensitive flags (empty state); 0 credential-named non-empty fields; 0 pattern hits. (c) Sensitive-path metadata: UNVERIFIED. Root plan 40 resource changes, bootstrap 5; assumed Change field numbers (values 7, before-sensitive 8, after-sensitive 9) do not match this Terraform version and mapped values in 0 changes; observed Change fields: root field 2 x40, field 4 x2, field 8 x39; bootstrap field 2 x5, field 8 x5, field 4 absent; which field carries sensitive paths is undetermined; no determination whether known sensitive values are present. Limitations: high-entropy check is charset-only (possible false positives, none matched). Next step requires user approval: corrected fixture plus structural probe of Change fields 2, 4, 8 to settle (c) and validate (a)/(b).
+- 2026-11-02 user decision: historical-plan investigation (22.x) stopped; 22.4 accepted as UNVERIFIED; FND-SEC-HIST-001 kept OPEN as a documented residual risk (Low Risk / Informational; not confirmed secret-free). Project returned to the pre-deployment checkpoint: tfplan-dev-lockfile remains the authoritative saved plan (tfplan-dev preserved); Bootstrap verdict GO WITH CONDITIONS (desired_count = 0) unchanged; terraform apply NOT authorized; no files, state or AWS resources were changed by tasks 22.1-22.4.
+- 9.11 CHK-ECS-015 PASS (image side; user-approved 2026-11-02 metadata-only ECR call): one read-only command `aws ecr batch-get-image --repository-name eruditiontx-app-ecs-dev-app --image-ids imageTag=sha-a454df4 --accepted-media-types <oci index/oci manifest/docker v2> --profile charltonecs --region us-east-1` (no pipes, no login, no layer/child-manifest fetch). Image mediaType application/vnd.oci.image.index.v1+json (OCI image INDEX). Platforms: linux/amd64 present (1 real manifest) plus 1 attestation entry unknown/unknown. imageDigest sha256:846ae369...88bba1 MATCHES the recorded digest. Task definition module.backend.aws_ecs_task_definition.app: runtime_platform unset -> defaults cpu_architecture X86_64, operating_system_family LINUX, cpu 256, memory 512 (plan also lists non-active duplicate/legacy task_definition entries with null values; only the active planned resource is authoritative). Verdict PASS: OCI index includes linux/amd64 matching X86_64/LINUX; digest matches. Account id (registryId) masked, not printed; no config/layer digests beyond the top-level index digest; no secrets; no mutating actions.
+- 23.1 CHK-CAP-001 PASS (user-approved 2026-11-02 read-only quota + usage check; counts only, no ids): commands `aws ec2 describe-internet-gateways --profile charltonecs --region us-east-1` and `aws service-quotas get-service-quota --service-code vpc --quota-code L-A4707A72 --profile charltonecs --region us-east-1` (applied quota present, fallback not needed). Current IGW count 0 (0 attached, 0 detached). Applicable quota 5 (source: applied quota 'Internet gateways per Region', L-A4707A72). Expected after bootstrap 0+1=1 (plan creates 1 aws_vpc + 1 aws_internet_gateway, assumption not re-planned). Headroom 4. Verdict PASS: 0+1 <= 5. No resource/account ids printed; no mutations; tfplan-dev-lockfile unchanged.
+- 23.2 CHK-CAP-002 PASS all 5 items (user-approved 2026-11-02 grouped read-only check; counts and CIDR strings only, no ids): confirmed planned VPC CIDR 10.0.0.0/16 and planned NAT AZ us-east-1a from terraform.tfvars. Commands: aws ec2 describe-vpcs, describe-nat-gateways, describe-addresses, and service-quotas get-service-quota for vpc/L-F678F1CE (VPCs per Region), ec2/L-0263D0A3 (EC2-VPC Elastic IPs per Region), vpc/L-FE5A380F (NAT gateways per AZ); all applied quotas, no default fallback; no describe-subnets needed (0 NATs). Item 1 VPC CIDR: 0 existing VPCs, no overlap with 10.0.0.0/16 -> PASS. Item 2 VPC quota: 0 existing, quota 5 (applied), after bootstrap 1, headroom 4 -> PASS. Item 3 EIP quota: 0 allocated, quota 5 (applied), after bootstrap 1, headroom 4 -> PASS. Item 4 NAT per AZ us-east-1a: 0 existing, quota 5 (applied), after bootstrap 1, headroom 4 -> PASS. Item 5 combined (1 VPC + 1 NAT + 1 EIP, no CIDR conflict): PASS. No ids/addresses printed; no mutations; tfplan-dev-lockfile unchanged.
+- 23.3 CHK-CAP-003 PASS all 3 named resources (user-approved 2026-11-02 grouped read-only name-conflict check; names and booleans only, no ids/ARNs/bodies): planned names resolved from tfplan-dev-lockfile via PLANQ (1 standalone aws_iam_policy, 1 aws_cloudwatch_dashboard, 1 aws_cloudfront_origin_access_control, 1 distribution, 0 custom cloudfront response-headers/cache/origin-request policies). (1) IAM policy 'eruditiontx-app-ecs-dev-ecs-execution-secret' (path /) via `aws iam list-policies --scope Local --max-items 1000`: not among 11 existing local policies -> exists false -> PASS. (2) CloudWatch dashboard 'eruditiontx-app-ecs-dev-observability' via `aws cloudwatch get-dashboard`: ResourceNotFound -> exists false -> PASS. (3) CloudFront OAC 'eruditiontx-app-ecs-dev-frontend-oac' via `aws cloudfront list-origin-access-controls`: OAC list empty -> exists false -> PASS. CloudFront distribution has no user-unique name (AWS-generated id) -> no name-conflict surface (informational). Custom CloudFront policy lookups skipped (0 planned). Nothing UNVERIFIED/BLOCKED; no mutations; tfplan-dev-lockfile unchanged.
+- 23.4 CHK-CAP-004 PASS with residual race (user-approved 2026-11-02 read-only; booleans/status class only, no ids/names): commands `aws s3api list-buckets --profile charltonecs` (exact-name membership test) and `aws s3api head-bucket --bucket eruditiontx-app-ecs-dev-frontend --profile charltonecs`. name-owned-in-this-account false; head-bucket status 404 (Not Found) => global name currently free. Verdict PASS: apply expected to succeed. Residual name-race (UNVERIFIED-until-apply): S3 global names are not reserved by this check; the name stays claimable by any account until apply creates it, so a 404 now does not guarantee success at apply. No account/owner id or other bucket names printed; no mutations; tfplan-dev-lockfile unchanged.
+
+## Notes
+
+- Tasks marked `*` are optional and DEFERRED: they are registered as NOT TESTED and must not run before the user applies the stack and separately approves.
+- Group A is fully executable before any `terraform apply`.
+- Evidence is held in the run record and consolidated into `readiness-report.md` in task 18; no other file is written.
+- Tasks 4.5 runs before 4.6 because CHK-TFP-014 needs the CHK-TFP-015 result.
+
+## Task Dependency Graph
+
+```json
+{
+  "waves": [
+    { "id": 0, "tasks": ["1.1"] },
+    { "id": 1, "tasks": ["2.1"] },
+    { "id": 2, "tasks": ["2.2"] },
+    { "id": 3, "tasks": ["2.3"] },
+    { "id": 4, "tasks": ["3.1", "3.2", "3.3"] },
+    { "id": 5, "tasks": ["3.4"] },
+    { "id": 6, "tasks": ["3.5"] },
+    { "id": 7, "tasks": ["3.6"] },
+    { "id": 8, "tasks": ["3.7", "3.8"] },
+    { "id": 9, "tasks": ["4.1", "4.2", "4.3", "4.4"] },
+    { "id": 10, "tasks": ["4.5", "4.7"] },
+    { "id": 11, "tasks": ["4.6", "5.1"] },
+    { "id": 12, "tasks": ["6.1", "6.2", "6.3", "6.4", "6.5", "6.6", "7.1", "7.2", "7.3", "7.4", "7.5", "7.6", "7.7", "7.9", "8.1", "8.2", "8.3", "8.4", "8.5", "8.6", "8.7", "8.8", "9.1", "9.2", "9.3", "9.4", "9.8", "9.9", "10.2", "10.3", "11.1", "11.2", "11.3", "11.4", "12.1"] },
+    { "id": 13, "tasks": ["7.8", "8.9", "9.5", "9.10", "10.1", "11.5", "12.2"] },
+    { "id": 14, "tasks": ["9.6", "9.7", "9.11"] },
+    { "id": 15, "tasks": ["12.3"] },
+    { "id": 16, "tasks": ["13.1"] },
+    { "id": 17, "tasks": ["14.1"] },
+    { "id": 18, "tasks": ["16.1", "16.2", "16.3", "16.4", "16.5", "16.6", "16.7", "16.8", "17.1", "17.3", "17.4", "17.5", "17.6", "17.7", "17.8", "17.9", "17.10", "17.11", "17.12"] },
+    { "id": 19, "tasks": ["17.2"] },
+    { "id": 20, "tasks": ["18.1"] },
+    { "id": 21, "tasks": ["18.2"] },
+    { "id": 22, "tasks": ["20.1"] },
+    { "id": 23, "tasks": ["21.1", "21.2"] },
+    { "id": 24, "tasks": ["22.1"] }
+  ]
+}
+```

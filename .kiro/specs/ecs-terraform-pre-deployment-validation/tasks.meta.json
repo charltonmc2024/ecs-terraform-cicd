@@ -1,0 +1,841 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Ask the user for approvals and inputs and record the answers (no commands run)": [
+      {
+        "executionId": "847ca03d-39d6-4179-88d8-e3ce4add5469",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793650158221
+      },
+      {
+        "executionId": "847ca03d-39d6-4179-88d8-e3ce4add5469",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793650229390
+      }
+    ],
+    "1. Approval checkpoint — no validation task runs until the user approves": [
+      {
+        "executionId": "847ca03d-39d6-4179-88d8-e3ce4add5469",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793650229765
+      }
+    ],
+    "2.1 CHK-INV-001 Inspection inventory": [
+      {
+        "executionId": "ca76e3b3-05c2-458d-a061-7fc1525924b8",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793650568254
+      },
+      {
+        "executionId": "ca76e3b3-05c2-458d-a061-7fc1525924b8",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793650693322
+      }
+    ],
+    "2.2 CHK-AWS-001 AWS read-access prerequisite (`sts get-caller-identity`)": [
+      {
+        "executionId": "ca76e3b3-05c2-458d-a061-7fc1525924b8",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793650698149
+      },
+      {
+        "executionId": "ca76e3b3-05c2-458d-a061-7fc1525924b8",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793650748128
+      }
+    ],
+    "2.3 CHK-SAF-001 (start) Safety bracket fingerprint": [
+      {
+        "executionId": "ca76e3b3-05c2-458d-a061-7fc1525924b8",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793650753173
+      },
+      {
+        "executionId": "ca76e3b3-05c2-458d-a061-7fc1525924b8",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793650935363
+      }
+    ],
+    "2. Group A (a) — Phase 0 inventory, safety bracket start, AWS read access": [
+      {
+        "executionId": "ca76e3b3-05c2-458d-a061-7fc1525924b8",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793650935951
+      }
+    ],
+    "3.1 CHK-TFP-003 Tool and provider versions": [
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651181808
+      },
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651258708
+      }
+    ],
+    "3.2 CHK-TFP-001 Format check": [
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651182183
+      },
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651259508
+      }
+    ],
+    "3.3 CHK-TFP-002 Validate": [
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651183233
+      },
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651259086
+      }
+    ],
+    "3.4 CHK-TFP-004 Plan summary counts": [
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651263641
+      },
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651347350
+      }
+    ],
+    "3.6 CHK-TFP-013 Stale JSON renderings": [
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651264959
+      },
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651347736
+      }
+    ],
+    "3.5 CHK-TFP-005 No update, delete or replace actions": [
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651351565
+      },
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651451869
+      }
+    ],
+    "3.7 CHK-TFP-006 Plan currency vs sources": [
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651352504
+      },
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651590366
+      }
+    ],
+    "3.8 CHK-TFP-007 Plan resources by module and type": [
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651455734
+      },
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651548516
+      }
+    ],
+    "3. Group A (b) — Terraform and plan integrity": [
+      {
+        "executionId": "2e2da6f8-c23a-4607-88ee-782b3e7e4418",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651590927
+      }
+    ],
+    "4.1 CHK-TFP-008 Remote state empty before first deployment": [
+      {
+        "executionId": "0b919a48-9f8d-4d63-9766-ffa57cc63b31",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793651792703
+      },
+      {
+        "executionId": "d94cac1d-9fab-4288-a0e6-96fdefb09d86",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793652125666
+      },
+      {
+        "executionId": "d94cac1d-9fab-4288-a0e6-96fdefb09d86",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793652243696
+      }
+    ],
+    "4.2 CHK-TFP-009 Plan and state files ignored and untracked": [
+      {
+        "executionId": "8856bf17-bd28-4252-ae98-54a6904ffff5",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793652465013
+      },
+      {
+        "executionId": "8856bf17-bd28-4252-ae98-54a6904ffff5",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793652554959
+      }
+    ],
+    "4.3 CHK-TFP-011 Backend configuration supplied externally": [
+      {
+        "executionId": "cccacc41-816b-4b47-9ad3-ac08c6a5825e",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793652733970
+      },
+      {
+        "executionId": "cccacc41-816b-4b47-9ad3-ac08c6a5825e",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793653009909
+      }
+    ],
+    "4.4 CHK-TFP-012 Local state files inspected structurally": [
+      {
+        "executionId": "db468917-be4e-4551-847d-18f5d0c7dc42",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793653174069
+      },
+      {
+        "executionId": "db468917-be4e-4551-847d-18f5d0c7dc42",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793653265972
+      }
+    ],
+    "4.5 CHK-TFP-015 Confirm state encryption and locking from bootstrap and bucket metadata": [
+      {
+        "executionId": "bfa5300c-c4a5-4504-935c-1ce49404fbcd",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793653509744
+      },
+      {
+        "executionId": "bfa5300c-c4a5-4504-935c-1ce49404fbcd",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793653584893
+      }
+    ],
+    "4.6 CHK-TFP-014 Initialized backend metadata (structural)": [
+      {
+        "executionId": "5609dbc7-f58a-47ac-84f9-22cb6a76d478",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793654983057
+      },
+      {
+        "executionId": "5609dbc7-f58a-47ac-84f9-22cb6a76d478",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793655570898
+      }
+    ],
+    "4.7 CHK-CIC-006 Plan patterns ignored, no plan files tracked": [
+      {
+        "executionId": "81c48adf-de18-4438-b2b1-8ae08dd86136",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793655902414
+      },
+      {
+        "executionId": "81c48adf-de18-4438-b2b1-8ae08dd86136",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656053951
+      }
+    ],
+    "4. Group A (c) — State, backend and ignore rules": [
+      {
+        "executionId": "81c48adf-de18-4438-b2b1-8ae08dd86136",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656054407
+      }
+    ],
+    "9.4 CHK-ECS-004 ECR: planned name, state and plan action": [
+      {
+        "executionId": "ee8f5040-cdcb-434e-9808-680bc0363c2a",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656561384
+      },
+      {
+        "executionId": "ee8f5040-cdcb-434e-9808-680bc0363c2a",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656637093
+      }
+    ],
+    "9.5 CHK-ECS-005 ECR: repository and image tag in AWS": [
+      {
+        "executionId": "ee8f5040-cdcb-434e-9808-680bc0363c2a",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656641821
+      },
+      {
+        "executionId": "ee8f5040-cdcb-434e-9808-680bc0363c2a",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656714928
+      }
+    ],
+    "9.6 CHK-ECS-006 ECR decision table outcome": [
+      {
+        "executionId": "ee8f5040-cdcb-434e-9808-680bc0363c2a",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656719921
+      },
+      {
+        "executionId": "ee8f5040-cdcb-434e-9808-680bc0363c2a",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656765452
+      }
+    ],
+    "9.7 CHK-ECS-014 Image tag in a different repository": [
+      {
+        "executionId": "ee8f5040-cdcb-434e-9808-680bc0363c2a",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656772955
+      },
+      {
+        "executionId": "ee8f5040-cdcb-434e-9808-680bc0363c2a",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656801625
+      }
+    ],
+    "6.1 CHK-NET-001 VPC, subnets, IGW, route tables": [
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656969094
+      },
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657117304
+      }
+    ],
+    "6.2 CHK-NET-002 NAT Gateway": [
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656969732
+      },
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657115458
+      }
+    ],
+    "6.3 CHK-NET-003 S3 gateway endpoint": [
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656970682
+      },
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657115858
+      }
+    ],
+    "6.4 CHK-NET-004 Private subnets in distinct AZs": [
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656972240
+      },
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657118632
+      }
+    ],
+    "6.5 CHK-NET-005 Interface endpoint absence and NAT dependency": [
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793656973742
+      },
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657119888
+      }
+    ],
+    "6.6 CHK-NET-006 No public IP on private subnets": [
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657124306
+      },
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657230575
+      }
+    ],
+    "6. Group A (e) — Networking (plan-derived)": [
+      {
+        "executionId": "a01310e9-61de-4efe-96fa-170df88f3e65",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657231166
+      }
+    ],
+    "7.1 CHK-SGI-001 ALB security group": [
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657454342
+      },
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657590800
+      }
+    ],
+    "7.2 CHK-SGI-002 ECS security group": [
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657454890
+      },
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657589706
+      }
+    ],
+    "7.3 CHK-SGI-003 All `0.0.0.0/0` rules": [
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657455724
+      },
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657588877
+      }
+    ],
+    "7.4 CHK-SGI-004 ECS execution role permissions": [
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657457143
+      },
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657592153
+      }
+    ],
+    "7.5 CHK-SGI-005 ECS task role least privilege": [
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657458213
+      },
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657593564
+      }
+    ],
+    "7.6 CHK-SGI-006 Trust policies": [
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657600666
+      },
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657717050
+      }
+    ],
+    "7.7 CHK-SGI-007 No IAM users or access keys": [
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657602182
+      },
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657716555
+      }
+    ],
+    "7.8 CHK-SGI-008 `distinct()` and single secret ARN Resource entry": [
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657603282
+      },
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657718030
+      }
+    ],
+    "7.9 CHK-SGI-009 Secret KMS key": [
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657604623
+      },
+      {
+        "executionId": "39898c64-8b66-496e-ba01-7f35e71a505b",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657719321
+      }
+    ],
+    "8.1 CHK-EDG-001 S3 public access block and encryption": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657875966
+      },
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658306270
+      }
+    ],
+    "9.1 CHK-ECS-001 Fargate in private subnets without public IP": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657876715
+      },
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658322687
+      }
+    ],
+    "13.1 CHK-COST-001 Cost table (fixed / usage / unknown)": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657878961
+      },
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658331789
+      }
+    ],
+    "5.1 CHK-TFP-010 No hardcoded identifiers": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793657879812
+      },
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658332727
+      }
+    ],
+    "8.2 CHK-EDG-002 Bucket policy": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658305845
+      }
+    ],
+    "8.3 CHK-EDG-003 OAC and no OAI": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658307116
+      }
+    ],
+    "8.4 CHK-EDG-004 Default root object": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658308412
+      }
+    ],
+    "8.5 CHK-EDG-005 Ordered API behaviors": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658310188
+      }
+    ],
+    "8.6 CHK-EDG-006 VPC Origin target and protocol": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658318446
+      }
+    ],
+    "8.7 CHK-EDG-007 Default certificate, no ACM or Route 53": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658318851
+      }
+    ],
+    "8.8 CHK-EDG-008 WAF disabled": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658321122
+      }
+    ],
+    "8.9 CHK-EDG-009 CloudFront diff vs plan": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658321952
+      }
+    ],
+    "9.2 CHK-ECS-002 Desired count and autoscaling bounds": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658324075
+      }
+    ],
+    "9.3 CHK-ECS-003 Internal ALB, listener, target group": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658325745
+      }
+    ],
+    "9.8 CHK-ECS-007 ECR immutability and lifecycle policy": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658327433
+      }
+    ],
+    "9.9 CHK-ECS-008 Secret and env injection": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658328674
+      }
+    ],
+    "9.10 CHK-ECS-009 Desired-count drift (FND-ECS-DRIFT)": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658330414
+      }
+    ],
+    "13. Group A (l) — Cost estimation": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658333486
+      }
+    ],
+    "5. Group A (d) — Hardcoding scan": [
+      {
+        "executionId": "c952ff89-0b09-45d1-91d1-bd2f058230a7",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658333888
+      }
+    ],
+    "20.1 CHK-PRE-001 Account preflight: bucket name, service-linked roles, name conflicts, quotas": [
+      {
+        "executionId": "1c06b330-99ed-47a9-84ab-790843cb322f",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658753507
+      },
+      {
+        "executionId": "1c06b330-99ed-47a9-84ab-790843cb322f",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658938662
+      }
+    ],
+    "20. Pre-apply read-only preflight (user-approved 2026-11-02)": [
+      {
+        "executionId": "1c06b330-99ed-47a9-84ab-790843cb322f",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793658939168
+      }
+    ],
+    "21.2 Single-file commit of modules/edge/cloudfront.tf": [
+      {
+        "executionId": "f1f03f11-cc7b-4ada-ba6e-60e1d42c1149",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793659358981
+      },
+      {
+        "executionId": "f1f03f11-cc7b-4ada-ba6e-60e1d42c1149",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793659482722
+      }
+    ],
+    "21.1 CHK-PRE-002 Read-only IAM simulation: iam:CreateServiceLinkedRole for the two absent service-linked roles": [
+      {
+        "executionId": "f1f03f11-cc7b-4ada-ba6e-60e1d42c1149",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793659359611
+      },
+      {
+        "executionId": "f1f03f11-cc7b-4ada-ba6e-60e1d42c1149",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793659482335
+      }
+    ],
+    "22.1 CHK-SEC-001 Remote visibility, historical plan blob metadata and safe-inspection proposal": [
+      {
+        "executionId": "9234aff6-bd02-4508-9c3a-637646eb6bd5",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793660006332
+      },
+      {
+        "executionId": "9234aff6-bd02-4508-9c3a-637646eb6bd5",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793660185932
+      }
+    ],
+    "22. FND-SEC-HIST-001 follow-up, step 1 (user-approved 2026-11-02; no contents extracted)": [
+      {
+        "executionId": "9234aff6-bd02-4508-9c3a-637646eb6bd5",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793660186490
+      },
+      {
+        "executionId": "f3ee56f9-f045-47da-9f01-310b8cac071f",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793660452355
+      },
+      {
+        "executionId": "f86242ce-6652-499c-ac80-2e2a54daebf9",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793660775121
+      },
+      {
+        "executionId": "3e182962-9c4c-4674-8bd0-e95c748933f1",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793661243329
+      }
+    ],
+    "22.2 CHK-SEC-002 In-memory credential scan of two historical plan blobs (user-approved)": [
+      {
+        "executionId": "f3ee56f9-f045-47da-9f01-310b8cac071f",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793660396130
+      },
+      {
+        "executionId": "f3ee56f9-f045-47da-9f01-310b8cac071f",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793660451858
+      }
+    ],
+    "22.3 CHK-SEC-003 MessagePack-aware in-memory inspection of binary tfplan members (user-approved)": [
+      {
+        "executionId": "f86242ce-6652-499c-ac80-2e2a54daebf9",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793660635151
+      },
+      {
+        "executionId": "f86242ce-6652-499c-ac80-2e2a54daebf9",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793660774541
+      }
+    ],
+    "22.4 CHK-SEC-004 Residual in-memory inspection: root-plan variables, tfstate-prev members, sensitive-path metadata (user-approved)": [
+      {
+        "executionId": "3e182962-9c4c-4674-8bd0-e95c748933f1",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793661090925
+      },
+      {
+        "executionId": "3e182962-9c4c-4674-8bd0-e95c748933f1",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793661242461
+      }
+    ],
+    "9.11 CHK-ECS-015 Image platform vs Fargate task CPU architecture": [
+      {
+        "executionId": "34804ca0-635a-4195-999f-1e88d508a132",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793669620945
+      },
+      {
+        "executionId": "34804ca0-635a-4195-999f-1e88d508a132",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793670326742
+      }
+    ],
+    "9. Group A (h) — ECS, ALB and ECR": [
+      {
+        "executionId": "34804ca0-635a-4195-999f-1e88d508a132",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793670327393
+      }
+    ],
+    "23.1 CHK-CAP-001 Internet Gateway quota and current usage vs planned bootstrap": [
+      {
+        "executionId": "2a5b73ec-a607-4d9d-92bb-dd8f81b2033f",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793670727045
+      },
+      {
+        "executionId": "2a5b73ec-a607-4d9d-92bb-dd8f81b2033f",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793670774297
+      }
+    ],
+    "23. Pre-apply capacity verification (user-approved, read-only)": [
+      {
+        "executionId": "2a5b73ec-a607-4d9d-92bb-dd8f81b2033f",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793670774874
+      }
+    ],
+    "23.2 CHK-CAP-002 Grouped networking capacity: VPC CIDR conflicts, VPC/EIP/NAT quotas vs planned bootstrap": [
+      {
+        "executionId": "346d2c13-7b63-4a1d-baf4-4d66e7fbb1e5",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793671012030
+      },
+      {
+        "executionId": "346d2c13-7b63-4a1d-baf4-4d66e7fbb1e5",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793671085361
+      }
+    ],
+    "23.3 CHK-CAP-003 Resource-name conflicts: IAM policy, CloudWatch dashboard, CloudFront identifiers": [
+      {
+        "executionId": "a038b8eb-8717-4274-8192-e0369d2f1f6e",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793671353854
+      },
+      {
+        "executionId": "a038b8eb-8717-4274-8192-e0369d2f1f6e",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793671468936
+      }
+    ],
+    "23.4 CHK-CAP-004 S3 frontend bucket availability (FND-EDG-005)": [
+      {
+        "executionId": "972d4d8e-1468-4100-990a-6dbd4efc1bbe",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793671698808
+      },
+      {
+        "executionId": "972d4d8e-1468-4100-990a-6dbd4efc1bbe",
+        "chatSessionId": "sess_c1901587-424e-46a7-9593-417e564a5720",
+        "timestamp": 1793671741377
+      }
+    ]
+  }
+}
