@@ -45,6 +45,21 @@ pipeline {
                 }
             }
         }
+
+        stage('Prepare Image Tag') {
+            steps {
+                script {
+                    env.GIT_SHA = sh(
+                        script: 'git rev-parse --short=7 HEAD',
+                        returnStdout: true
+                    ).trim()
+
+                    env.IMAGE_TAG = "sha-${env.GIT_SHA}"
+                }
+
+                echo "Prepared image tag: ${env.IMAGE_TAG}"
+            }
+        }
         stage('Build Docker Image') {
             steps {
                 dir('ecs-application') {
@@ -53,8 +68,7 @@ pipeline {
 
                 echo "=== Building Next.js Docker Image ==="
 
-                GIT_SHA=$(git rev-parse --short=7 HEAD)
-                IMAGE_NAME="erudition-nextjs:$GIT_SHA"
+                IMAGE_NAME="erudition-nextjs:$IMAGE_TAG"
 
                 docker build -t "$IMAGE_NAME" .
 
@@ -69,51 +83,50 @@ pipeline {
             steps {
                 dir('ecs-application') {
                     sh '''
-                set -eu
+                        set -eu
 
-                echo "=== Docker Smoke Test ==="
+                        echo "=== Docker Smoke Test ==="
 
-                GIT_SHA=$(git rev-parse --short=7 HEAD)
-                IMAGE_NAME="erudition-nextjs:$GIT_SHA"
+                        IMAGE_NAME="erudition-nextjs:$IMAGE_TAG"
 
-                # Unique container name for this Jenkins build
-                CONTAINER_NAME="erudition-test-${BUILD_NUMBER:-local}-$$"
+                        # Unique container name for this Jenkins build
+                        CONTAINER_NAME="erudition-test-$BUILD_NUMBER-$$"
 
-                # Ensure cleanup even when the test fails
-                trap 'docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true' EXIT
+                        # Ensure cleanup even when the test fails
+                        trap 'docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true' EXIT
 
-                echo "Testing image: $IMAGE_NAME"
+                        echo "Testing image: $IMAGE_NAME"
 
-                docker run -d --name "$CONTAINER_NAME" "$IMAGE_NAME"
+                        docker run -d --name "$CONTAINER_NAME" "$IMAGE_NAME"
 
-                echo "=== Waiting for Next.js to become ready ==="
+                        echo "=== Waiting for Next.js to become ready ==="
 
-                MAX_ATTEMPTS=20
-                ATTEMPT=1
+                        MAX_ATTEMPTS=20
+                        ATTEMPT=1
 
-                while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
-                    if docker exec "$CONTAINER_NAME" node -e '
-                        fetch("http://127.0.0.1:3000")
+                        while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
+                            if docker exec "$CONTAINER_NAME" node -e '
+                            fetch("http://127.0.0.1:3000")
                             .then(response => {
                                 console.log("HTTP status:", response.status);
                                 if (!response.ok) process.exit(1);
                             })
                             .catch(() => process.exit(1));
-                    '; then
-                        echo "=== Docker smoke test passed ==="
-                        exit 0
-                    fi
+                            '; then
+                            echo "=== Docker smoke test passed ==="
+                            exit 0
+                            fi
 
-                    echo "Attempt $ATTEMPT/$MAX_ATTEMPTS failed. Retrying..."
+                        echo "Attempt $ATTEMPT/$MAX_ATTEMPTS failed. Retrying..."
 
-                    sleep 3
-                    ATTEMPT=$((ATTEMPT + 1))
-                done
+                        sleep 3
+                        ATTEMPT=$((ATTEMPT + 1))
+                        done
 
-                echo "ERROR: Application failed smoke test."
-                docker logs --tail 100 "$CONTAINER_NAME"
-                exit 1
-            '''
+                        echo "ERROR: Application failed smoke test."
+                        docker logs --tail 100 "$CONTAINER_NAME"
+                        exit 1
+                    '''
                 }
             }
         }
@@ -163,9 +176,8 @@ pipeline {
 
                 echo "=== Tagging Docker Image ==="
 
-                GIT_SHA=$(git rev-parse --short=7 HEAD)
-                LOCAL_IMAGE="erudition-nextjs:$GIT_SHA"
-                ECR_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:sha-$GIT_SHA"
+                LOCAL_IMAGE="erudition-nextjs:$IMAGE_TAG"
+                ECR_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
                 docker image inspect "$LOCAL_IMAGE" >/dev/null
                 docker tag "$LOCAL_IMAGE" "$ECR_IMAGE"
