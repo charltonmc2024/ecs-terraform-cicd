@@ -75,36 +75,44 @@ pipeline {
 
                 GIT_SHA=$(git rev-parse --short=7 HEAD)
                 IMAGE_NAME="erudition-nextjs:$GIT_SHA"
-                CONTAINER_NAME="erudition-pipeline-test"
 
-                # Remove any leftover test container
-                docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+                # Unique container name for this Jenkins build
+                CONTAINER_NAME="erudition-test-${BUILD_NUMBER:-local}-$$"
 
-                # Always clean up when the script exits
+                # Ensure cleanup even when the test fails
                 trap 'docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true' EXIT
 
                 echo "Testing image: $IMAGE_NAME"
 
-                # Start the container
                 docker run -d --name "$CONTAINER_NAME" "$IMAGE_NAME"
 
-                # Give Next.js time to start
-                sleep 10
+                echo "=== Waiting for Next.js to become ready ==="
 
-                # Verify the application responds successfully
-                docker exec "$CONTAINER_NAME" node -e '
-                    fetch("http://127.0.0.1:3000")
-                        .then(response => {
-                            console.log("HTTP status:", response.status);
-                            if (!response.ok) process.exit(1);
-                        })
-                        .catch(error => {
-                            console.error(error);
-                            process.exit(1);
-                        });
-                '
+                MAX_ATTEMPTS=20
+                ATTEMPT=1
 
-                echo "=== Docker smoke test passed ==="
+                while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
+                    if docker exec "$CONTAINER_NAME" node -e '
+                        fetch("http://127.0.0.1:3000")
+                            .then(response => {
+                                console.log("HTTP status:", response.status);
+                                if (!response.ok) process.exit(1);
+                            })
+                            .catch(() => process.exit(1));
+                    '; then
+                        echo "=== Docker smoke test passed ==="
+                        exit 0
+                    fi
+
+                    echo "Attempt $ATTEMPT/$MAX_ATTEMPTS failed. Retrying..."
+
+                    sleep 3
+                    ATTEMPT=$((ATTEMPT + 1))
+                done
+
+                echo "ERROR: Application failed smoke test."
+                docker logs --tail 100 "$CONTAINER_NAME"
+                exit 1
             '''
                 }
             }
