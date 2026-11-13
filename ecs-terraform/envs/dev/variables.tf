@@ -120,15 +120,17 @@ variable "health_check_path" {
   default     = "/"
 }
 
+
 variable "image_tag" {
-  # BOOTSTRAP PLACEHOLDER: "latest" is only a placeholder so validate/plan work
-  # before any real image exists in ECR. It is NOT a real deployable image. Before
-  # running application tasks we will push a real immutable Git-SHA image and update
-  # image_tag (together with desired_count = 1 and min_capacity = 1) in one change.
-  description = "Application image tag the ECS task definition references. A real deploy overrides this with an immutable tag (e.g. a Git SHA); the default \"latest\" is a bootstrap placeholder only so validate/plan work before an image exists."
+  description = "Immutable Git SHA Docker image tag supplied by Jenkins through TF_VAR_image_tag."
   type        = string
-  default     = "latest"
+
+  validation {
+    condition     = can(regex("^sha-[0-9a-f]{7,40}$", var.image_tag))
+    error_message = "image_tag must be an immutable Git SHA tag, such as sha-65b6bea."
+  }
 }
+
 
 # First-deployment bootstrap: desired_count and min_capacity are surfaced at the
 # root so DEV can start with ZERO tasks before any real image exists in ECR
