@@ -14,8 +14,3 @@ output "cloudfront_domain_name" {
   description = "Default *.cloudfront.net domain name of the distribution, used to reach the environment."
   value       = aws_cloudfront_distribution.this.domain_name
 }
-
-output "frontend_bucket_name" {
-  description = "Name of the private S3 frontend bucket, used by CI/CD to upload the compiled frontend assets."
-  value       = aws_s3_bucket.frontend.bucket
-}

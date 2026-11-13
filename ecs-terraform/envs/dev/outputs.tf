@@ -46,9 +46,9 @@ output "ecs_service_name" {
   value       = module.backend.ecs_service_name
 }
 
-# Re-export the edge module's minimal output surface so operators and CI/CD can
-# reach the environment and upload frontend assets. The VPC Origin id, OAC id,
-# bucket ARN, and distribution ARN are intentionally NOT re-exported.
+# Re-export the edge module's minimal output surface so operators and CI/CD
+# can access the CloudFront distribution. Next.js runs on ECS Fargate,
+# not in an S3 frontend bucket.
 
 output "cloudfront_domain_name" {
   description = "Default *.cloudfront.net domain name of the CloudFront distribution, used to reach the environment."
@@ -60,10 +60,6 @@ output "cloudfront_distribution_id" {
   value       = module.edge.cloudfront_distribution_id
 }
 
-output "frontend_bucket_name" {
-  description = "Name of the private S3 frontend bucket, used by CI/CD to upload the compiled frontend assets."
-  value       = module.edge.frontend_bucket_name
-}
 # Re-export the observability module's minimal output surface so operators and
 # CI/CD can open the dashboard and (when enabled) reference the alarm SNS topic.
 

@@ -52,15 +52,9 @@ resource "aws_cloudfront_vpc_origin" "api" {
   })
 }
 
-# Task 5.2 — Managed CloudFront policies resolved by name via data sources so no
-# policy IDs are hardcoded. CachingOptimized caches the static frontend normally;
-# CachingDisabled keeps the /api/* behavior uncached; AllViewerExceptHostHeader
-# forwards the request data a dynamic API needs while omitting the viewer Host
-# header (which a VPC/custom origin does not expect).
-data "aws_cloudfront_cache_policy" "caching_optimized" {
-  name = "Managed-CachingOptimized"
-}
-
+# Task 5.2 — Managed CloudFront policies.
+# Disable caching for dynamic Next.js and FastAPI responses.
+# Forward viewer request data except the Host header.
 data "aws_cloudfront_cache_policy" "caching_disabled" {
   name = "Managed-CachingDisabled"
 }
@@ -73,29 +67,17 @@ data "aws_cloudfront_response_headers_policy" "security" {
   name = "Managed-SecurityHeadersPolicy"
 }
 
-# Task 5.3 — The single CloudFront distribution: the platform's only
-# internet-facing resource. Two origins (private S3 via OAC, and the internal
-# ALB via the edge-created VPC Origin) and two behaviors (default -> S3, /api/*
-# -> API). Viewer TLS uses the default *.cloudfront.net certificate; the origin
-# hop to the ALB is HTTP over the private VPC Origin path. No aliases, no ACM,
-# no Route 53, no Origin Shield, and no Shield resource for DEV. An OPTIONAL WAFv2
-# web ACL is associated via var.web_acl_id (null = none), supplied by the Dev_Root
+# Task 5.3 — CloudFront distribution using one private ALB VPC origin.
+# Default traffic reaches Next.js; /v1/* reaches FastAPI through ALB routing.
+# Viewer HTTPS uses the default CloudFront certificate.
+# Optional WAF association is provided by the Dev root.
 resource "aws_cloudfront_distribution" "this" {
-  enabled             = true
-  default_root_object = "index.html"
+  enabled = true
 
   # Optional WAFv2 web ACL association (CLOUDFRONT scope). Null leaves the
   # distribution with no association; a non-null ARN comes from the security
   # module via the Dev_Root. This module creates no WAF resource.
   web_acl_id = var.web_acl_id
-
-  # Static frontend origin: private S3 bucket reached via OAC (regional domain,
-  # never the S3 website endpoint).
-  origin {
-    origin_id                = "s3-frontend"
-    domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
-    origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
-  }
 
   # API origin: the internal ALB reached through the edge-created VPC Origin.
   # domain_name is the ALB DNS name (consumed from the backend); the VPC Origin
@@ -109,14 +91,15 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  # Default behavior — S3 frontend
+  # Default behavior — Next.js on ECS Fargate via internal ALB
   default_cache_behavior {
-    target_origin_id           = "s3-frontend"
+    target_origin_id           = "api-vpc-origin"
     viewer_protocol_policy     = "redirect-to-https"
-    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_optimized.id
+    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
     response_headers_policy_id = data.aws_cloudfront_response_headers_policy.security.id
 
-    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods  = ["GET", "HEAD"]
   }
 
