@@ -1,0 +1,110 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(
+            name: 'IMAGE_TAG',
+            defaultValue: '',
+            description: 'Existing ECR image tag, for example sha-65b6bea'
+        )
+    }
+
+    stages {
+        stage('Checkout GitHub') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/charltonmc2024/ecs-terraform-cicd.git'
+            }
+        }
+
+        stage('Validate Image Tag') {
+            steps {
+                script {
+                    def imageTag = params.IMAGE_TAG?.trim()
+
+                    if (!(imageTag ==~ /^sha-[0-9a-f]{7,40}$/)) {
+                        error(
+                            'Invalid IMAGE_TAG. Expected format: sha- followed by 7 to 40 lowercase hexadecimal characters.'
+                        )
+                    }
+
+                    env.DEPLOY_IMAGE_TAG = imageTag
+
+                    echo "Validated image tag: ${env.DEPLOY_IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'ecs-dev-terraform-backend', variable: 'BACKEND_CONFIG')
+                ]) {
+                    withEnv([
+                        'AWS_PROFILE=jenkins-rolesanywhere',
+                        'AWS_REGION=us-east-1',
+                        'AWS_CONFIG_FILE=/var/lib/jenkins/.aws/config'
+                    ]) {
+                        dir('ecs-terraform/envs/dev') {
+                            sh '''
+                                set -eu
+
+                                terraform init \
+                                    -input=false \
+                                    -backend-config="$BACKEND_CONFIG" \
+                                    -lockfile=readonly
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                dir('ecs-terraform/envs/dev') {
+                    sh '''
+                        set -eu
+
+                        echo "=== Validating Terraform configuration ==="
+                        terraform validate -no-color
+
+                        echo "=== Terraform validation completed ==="
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'ecs-dev-terraform-tfvars', variable: 'TFVARS_FILE')
+                ]) {
+                    withEnv([
+                        "TF_VAR_image_tag=${env.DEPLOY_IMAGE_TAG}",
+                        'AWS_PROFILE=jenkins-rolesanywhere',
+                        'AWS_REGION=us-east-1',
+                        'AWS_CONFIG_FILE=/var/lib/jenkins/.aws/config'
+                    ]) {
+                        dir('ecs-terraform/envs/dev') {
+                            sh '''
+                                set -eu
+
+                                echo "=== Terraform Plan ==="
+                                echo "Image tag: $TF_VAR_image_tag"
+
+                                terraform plan \
+                                    -input=false \
+                                    -no-color \
+                                    -var-file="$TFVARS_FILE" \
+                                    -out=tfplan-ci
+
+                                echo "=== Terraform plan saved ==="
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
