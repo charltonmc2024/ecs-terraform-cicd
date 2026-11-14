@@ -211,5 +211,66 @@ pipeline {
                 }
             }
         }
+
+        stage('Terraform Init') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'ecs-dev-terraform-tfvars', variable: 'TFVARS_FILE'),
+                    file(credentialsId: 'ecs-dev-terraform-backend', variable: 'BACKEND_CONFIG')
+                ]) {
+                    withEnv([
+                        'AWS_PROFILE=jenkins-rolesanywhere',
+                        'AWS_REGION=us-east-1',
+                        'AWS_CONFIG_FILE=/var/lib/jenkins/.aws/config'
+                    ]) {
+                        dir('ecs-terraform/envs/dev') {
+                            sh '''
+                                set -eu
+
+                                echo "=== Initializing Terraform ==="
+
+                                terraform init \
+                                    -input=false \
+                                    -backend-config="$BACKEND_CONFIG" \
+                                    -lockfile=readonly
+
+                                echo "=== Terraform initialization successful ==="
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'ecs-dev-terraform-tfvars', variable: 'TFVARS_FILE')
+                ]) {
+                    withEnv([
+                        "TF_VAR_image_tag=${env.IMAGE_TAG}",
+                        'AWS_PROFILE=jenkins-rolesanywhere',
+                        'AWS_REGION=us-east-1',
+                        'AWS_CONFIG_FILE=/var/lib/jenkins/.aws/config'
+                    ]) {
+                        dir('ecs-terraform/envs/dev') {
+                            sh '''
+                                set -eu
+
+                                echo "=== Planning Terraform deployment ==="
+                                echo "Docker image tag: $TF_VAR_image_tag"
+
+                                terraform plan \
+                                    -input=false \
+                                    -var-file="$TFVARS_FILE" \
+                                    -out=tfplan-ci
+
+                                echo "=== Terraform plan generated ==="
+                            '''
+                        }
+                    }
+                }
+            }
+        }
     }
 }
