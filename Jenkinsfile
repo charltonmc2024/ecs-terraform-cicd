@@ -60,21 +60,22 @@ pipeline {
                 echo "Prepared image tag: ${env.IMAGE_TAG}"
             }
         }
+
         stage('Build Docker Image') {
             steps {
                 dir('ecs-application') {
                     sh '''
-                set -eu
+                        set -eu
 
-                echo "=== Building Next.js Docker Image ==="
+                        echo "=== Building Next.js Docker Image ==="
 
-                IMAGE_NAME="erudition-nextjs:$IMAGE_TAG"
+                        IMAGE_NAME="erudition-nextjs:$IMAGE_TAG"
 
-                docker build -t "$IMAGE_NAME" .
+                        docker build -t "$IMAGE_NAME" .
 
-                echo "=== Docker image built successfully ==="
-                docker image inspect "$IMAGE_NAME"
-            '''
+                        echo "=== Docker image built successfully ==="
+                        docker image inspect "$IMAGE_NAME"
+                    '''
                 }
             }
         }
@@ -139,13 +140,13 @@ pipeline {
             'AWS_CONFIG_FILE=/var/lib/jenkins/.aws/config'
         ]) {
                     sh '''
-                set -eu
+                        set -eu
 
-                echo "=== Verifying AWS Identity ==="
-                aws sts get-caller-identity
+                        echo "=== Verifying AWS Identity ==="
+                        aws sts get-caller-identity
 
-                echo "=== AWS Authentication Successful ==="
-            '''
+                        echo "=== AWS Authentication Successful ==="
+                    '''
                 }
             }
         }
@@ -158,35 +159,55 @@ pipeline {
             'AWS_CONFIG_FILE=/var/lib/jenkins/.aws/config'
         ]) {
                     sh '''
-                set -eu
+                        set -eu
 
-                echo "=== Preparing temporary Docker credentials ==="
+                        echo "=== Preparing temporary Docker credentials ==="
 
-                export DOCKER_CONFIG="$(mktemp -d)"
-                chmod 700 "$DOCKER_CONFIG"
-                trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+                        export DOCKER_CONFIG="$(mktemp -d)"
+                        chmod 700 "$DOCKER_CONFIG"
+                        trap 'rm -rf "$DOCKER_CONFIG"' EXIT
 
-                echo "=== Logging in to Amazon ECR ==="
+                        echo "=== Logging in to Amazon ECR ==="
 
-                ECR_REGISTRY="691778449106.dkr.ecr.us-east-1.amazonaws.com"
-                ECR_REPOSITORY="eruditiontx-app-ecs-dev-app"
+                        ECR_REGISTRY="691778449106.dkr.ecr.us-east-1.amazonaws.com"
+                        ECR_REPOSITORY="eruditiontx-app-ecs-dev-app"
 
-                aws ecr get-login-password --region "$AWS_REGION" |
-                    docker login --username AWS --password-stdin "$ECR_REGISTRY"
+                        aws ecr get-login-password --region "$AWS_REGION" |
+                        docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
-                echo "=== Tagging Docker Image ==="
+                        echo "=== Tagging Docker Image ==="
 
-                LOCAL_IMAGE="erudition-nextjs:$IMAGE_TAG"
-                ECR_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+                        LOCAL_IMAGE="erudition-nextjs:$IMAGE_TAG"
+                        ECR_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
-                docker image inspect "$LOCAL_IMAGE" >/dev/null
-                docker tag "$LOCAL_IMAGE" "$ECR_IMAGE"
+                        docker image inspect "$LOCAL_IMAGE" >/dev/null
+                        docker tag "$LOCAL_IMAGE" "$ECR_IMAGE"
 
-                echo "=== Pushing Image to ECR ==="
-                docker push "$ECR_IMAGE"
+                        echo "=== Pushing Image to ECR ==="
+                        docker push "$ECR_IMAGE"
 
-                echo "=== ECR push successful ==="
-            '''
+                        echo "=== ECR push successful ==="
+                    '''
+                }
+            }
+        }
+
+        stage('Verify Terraform Image Tag') {
+            steps {
+                script {
+                    withEnv(["TF_VAR_image_tag=${env.IMAGE_TAG}"]) {
+                    sh '''
+                        set -eu
+
+                        echo "=== Jenkins to Terraform Image Tag ==="
+                        echo "IMAGE_TAG=$IMAGE_TAG"
+                        echo "TF_VAR_image_tag=$TF_VAR_image_tag"
+
+                        test "$IMAGE_TAG" = "$TF_VAR_image_tag"
+
+                        echo "=== Image tag verification successful ==="
+                    '''
+                    }
                 }
             }
         }
