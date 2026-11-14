@@ -154,3 +154,7 @@ desktop.ini
 *.tmp
 *.temp
 *.bak
+
+# Local Jenkins backups and Python learning scripts
+Jenkinsfile.backup*
+edit_jenkinsfile*.py
