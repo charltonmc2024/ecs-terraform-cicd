@@ -45,6 +45,7 @@ module "backend" {
 
   app_name    = var.app_name
   environment = var.environment
+  # Administrator-managed ECS IAM permissions boundary
 
   tags = {
     Project     = var.app_name

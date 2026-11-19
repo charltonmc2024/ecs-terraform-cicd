@@ -158,3 +158,5 @@ desktop.ini
 # Local Jenkins backups and Python learning scripts
 Jenkinsfile.backup*
 edit_jenkinsfile*.py
+# Local Terraform refactoring backups
+/terraform-refactor-backup/

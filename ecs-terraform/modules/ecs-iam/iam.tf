@@ -1,22 +1,24 @@
 # iam.tf
 #
-# Two distinct, least-privilege IAM roles back the ECS Fargate task (R6.1):
-#   - Execution_Role: assumed by the ECS agent to pull the image from ECR, write
-#     container logs to CloudWatch, and (when app_secret_arn is set) read the single
-#     injected secret. Uses the AWS-managed execution policy plus, optionally, the
-#     scoped secret-read policy in secrets.tf (R6.2).
-#   - Task_Role: assumed by the running application container as its runtime identity.
-#     The application database is MongoDB Atlas (external managed service), reached
-#     over the network using the connection URI injected from Secrets Manager, so the
-#     task role needs NO AWS data-plane permissions and carries no inline policy.
+# Administrator-managed IAM roles for ECS Fargate.
 #
-# No IAM user and no long-lived access key are created; the ECS service principal
-# assumes these roles via STS at task start, so no AWS credentials are embedded
-# anywhere (R6.4). Trust is restricted to the ECS task service principal only (R6.5).
-
-# Trust policy shared by both roles: only the ECS task runtime principal may assume
-# them via sts:AssumeRole. Scoping the principal to ecs-tasks.amazonaws.com keeps the
-# roles unusable by any other service or account (R6.5).
+# Four roles are defined:
+#   - Next.js execution role: ECR image pulls and CloudWatch logging.
+#   - Next.js task role: application runtime identity.
+#   - FastAPI execution role: ECR, logging, and separately configured secrets.
+#   - FastAPI task role: application runtime identity.
+#
+# IAM roles and policy attachments are managed separately from the
+# ECS infrastructure deployment.
+#
+# Each role uses an administrator-configured permissions boundary.
+# Trust is restricted to ecs-tasks.amazonaws.com with AWS source
+# account and source ARN conditions.
+#
+# No IAM users or long-lived access keys are created.
+#
+# ECS task definitions reference these roles through IAM data sources.
+#
 data "aws_caller_identity" "current" {}
 
 data "aws_partition" "current" {}
@@ -52,8 +54,9 @@ data "aws_iam_policy_document" "ecs_assume_role" {
 # The ECS agent uses this role to pull the image and ship logs; the application does
 # not use it. It carries only the AWS-managed execution policy, never AdministratorAccess.
 resource "aws_iam_role" "execution" {
-  name               = "${local.name_prefix}-ecs-execution"
-  assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
+  name                 = "${local.name_prefix}-ecs-execution"
+  assume_role_policy   = data.aws_iam_policy_document.ecs_assume_role.json
+  permissions_boundary = var.ecs_permissions_boundary_arn
 
   tags = merge(var.tags, { Name = "${local.name_prefix}-ecs-execution" })
 }
@@ -76,8 +79,9 @@ resource "aws_iam_role_policy_attachment" "execution_managed" {
 # later needs a specific AWS API (e.g. S3 object storage), a scoped policy would be
 # attached here at that time.
 resource "aws_iam_role" "task" {
-  name               = "${local.name_prefix}-ecs-task"
-  assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
+  name                 = "${local.name_prefix}-ecs-task"
+  assume_role_policy   = data.aws_iam_policy_document.ecs_assume_role.json
+  permissions_boundary = var.ecs_permissions_boundary_arn
 
   tags = merge(var.tags, { Name = "${local.name_prefix}-ecs-task" })
 }
@@ -86,8 +90,9 @@ resource "aws_iam_role" "task" {
 # FastAPI ECS execution role.
 # Used by ECS to pull images, write logs, and retrieve configured secrets.
 resource "aws_iam_role" "api_execution" {
-  name               = "${local.name_prefix}-api-execution"
-  assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
+  name                 = "${local.name_prefix}-api-execution"
+  assume_role_policy   = data.aws_iam_policy_document.ecs_assume_role.json
+  permissions_boundary = var.ecs_permissions_boundary_arn
 
   tags = merge(var.tags, {
     Name = "${local.name_prefix}-api-execution"
@@ -102,8 +107,9 @@ resource "aws_iam_role_policy_attachment" "api_execution_managed" {
 # FastAPI runtime role.
 # No AWS data-plane permissions are required for MongoDB Atlas access.
 resource "aws_iam_role" "api_task" {
-  name               = "${local.name_prefix}-api-task"
-  assume_role_policy = data.aws_iam_policy_document.ecs_assume_role.json
+  name                 = "${local.name_prefix}-api-task"
+  assume_role_policy   = data.aws_iam_policy_document.ecs_assume_role.json
+  permissions_boundary = var.ecs_permissions_boundary_arn
 
   tags = merge(var.tags, {
     Name = "${local.name_prefix}-api-task"

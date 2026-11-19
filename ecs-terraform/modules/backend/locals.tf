@@ -1,12 +1,10 @@
+
 locals {
   # Single naming base for every resource name in this module.
   name_prefix = "${var.app_name}-${var.environment}"
 
-  # Secrets are wired only when a secret ARN is supplied. In DEV the default is null,
-  # so this evaluates to an empty list and the task definition contains no secret
-  # references — zero secret wiring appears in the plan (R7). When an ARN is provided,
-  # the MongoDB Atlas connection URI is injected as the MONGODB_URL environment secret
-  # from that ARN, which is exactly the variable the application reads at startup.
+  # Inject application secrets only when their ARNs are configured.
+  # The ECS execution role retrieves these secrets at task startup.
   container_secrets = concat(
     var.app_secret_arn == null ? [] : [
       {
@@ -22,12 +20,17 @@ locals {
     ]
   )
 
-  # Scoped read policy for the single supplied secret ARN. Gated on var.app_secret_arn:
-  # with the DEV default (null) this document is not created at all, so no secret-read
-  # permission appears in the plan. The resource is EXACTLY var.app_secret_arn — never a
-  # wildcard — so the execution role can read only this one secret. ssm:GetParameters is
-  # included so the same wiring works whether the ARN points at Secrets Manager or an SSM
-  # Parameter Store parameter; both actions are still scoped to the single ARN.
+  # Collect configured application secret ARNs.
+  # Supports both app_secret_arn and staff_admin_secret_arn.
+  # Null or empty values are excluded, and duplicates removed.
+  #
+  # These ARNs are used for ECS task definition configuration.
+  # IAM policies and attachments are managed separately
+  # by the administrator-owned IAM configuration.
+  #
+  # ECS execution roles require secretsmanager:GetSecretValue
+  # permissions for the configured Secrets Manager ARNs.
+  # SSM Parameter Store access requires separate permissions.
   mongo_secret_arns = distinct(compact([
     var.app_secret_arn,
     var.staff_admin_secret_arn

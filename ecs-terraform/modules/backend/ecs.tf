@@ -44,8 +44,8 @@ resource "aws_ecs_task_definition" "app" {
   # ship logs, and read the injected MONGODB_URL secret at task start; the task role
   # is the application's runtime identity (no AWS data-plane permissions, since the
   # database is external MongoDB Atlas reached over the network).
-  execution_role_arn = aws_iam_role.execution.arn
-  task_role_arn      = aws_iam_role.task.arn
+  execution_role_arn = data.aws_iam_role.execution.arn
+  task_role_arn      = data.aws_iam_role.task.arn
 
   container_definitions = jsonencode([
     {
@@ -136,8 +136,8 @@ resource "aws_ecs_task_definition" "api" {
   cpu                      = var.task_cpu
   memory                   = var.task_memory
 
-  execution_role_arn = aws_iam_role.api_execution.arn
-  task_role_arn      = aws_iam_role.api_task.arn
+  execution_role_arn = data.aws_iam_role.api_execution.arn
+  task_role_arn      = data.aws_iam_role.api_task.arn
 
   container_definitions = jsonencode([
     {
@@ -213,9 +213,7 @@ resource "aws_ecs_service" "api" {
   }
 
   depends_on = [
-    aws_lb_listener_rule.api,
-    aws_iam_role_policy_attachment.api_execution_managed,
-    aws_iam_role_policy_attachment.api_execution_secret
+    aws_lb_listener_rule.api
   ]
 
   tags = merge(var.tags, {
