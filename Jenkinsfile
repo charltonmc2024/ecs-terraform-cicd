@@ -71,7 +71,7 @@ pipeline {
 
                         IMAGE_NAME="erudition-nextjs:$IMAGE_TAG"
 
-                        docker build -t "$IMAGE_NAME" .
+                        docker build --provenance=false -t "$IMAGE_NAME" .
 
                         echo "=== Docker image built successfully ==="
                         docker image inspect "$IMAGE_NAME"
