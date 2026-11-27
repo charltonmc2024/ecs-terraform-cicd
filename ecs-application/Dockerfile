@@ -30,6 +30,9 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app
 
+# Apply targeted OS security updates
+RUN apk upgrade --no-cache libcrypto3 libssl3 zlib
+
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
